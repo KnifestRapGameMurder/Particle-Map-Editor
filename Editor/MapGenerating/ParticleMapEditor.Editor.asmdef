@@ -1,0 +1,19 @@
+{
+    "name": "ParticleMapEditor.Editor",
+    "rootNamespace": "Flexus.ParticleMapEditor.Editor",
+    "references": [
+        "GUID:324caed91501a9c47a04ebfd87b68794",
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:67e7fe2bfcc6ca0489b7755facbf8b5f",
+        "GUID:6b02c20ade5f5a347b43d419ca85f7c4"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
