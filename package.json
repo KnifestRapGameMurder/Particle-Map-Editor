@@ -14,7 +14,7 @@
         {
             "displayName": "Essentials",
             "description": "Includes scene for editing, configs and examples.",
-            "path": "Samples~/Essentials"
+            "path": "Samples~"
         }
     ]
 }
