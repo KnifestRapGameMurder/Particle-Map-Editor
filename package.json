@@ -5,5 +5,16 @@
   "version": "1.0.0",
   "unity": "2020.3",
   "author": "Knifest (https://github.com/KnifestRapGameMurder)",
-  "homepage": "https://github.com/Idegeron/Tri-Inspector-Flexus-Edition#readme"
+  "homepage": "https://github.com/Idegeron/Tri-Inspector-Flexus-Edition#readme",
+  "dependencies": {
+    "com.flexus.triinspector": "https://github.com/Idegeron/Flexus-Tri-Inspector.git",
+    "com.unity.textmeshpro": "3.0.8"
+  },
+  "samples": [
+        {
+            "displayName": "Essentials",
+            "description": "Includes scene for editing, configs and examples.",
+            "path": "Samples~/Essentials"
+        }
+    ]
 }
