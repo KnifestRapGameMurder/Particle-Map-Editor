@@ -192,6 +192,14 @@ namespace Flexus.ParticleMapEditor.Editor
 
             _ui.SetResCount(resCount);
 
+            _ui.SetResCount(Particles.Where(_ => _.Type != null).GroupBy(_ => _.Type).OrderBy(_ => _.Key.Name)
+                .Select(_ => new ParticleGeneratorUI.ResCountArgs
+                {
+                    ResName = _.Key.Name,
+                    ResColor = _.Key.Color,
+                    ResCount = _.Count(),
+                }));
+
             //Debug.Log(totalArea + "/ " + squareArea + " = " + (totalArea / squareArea));
         }
 
