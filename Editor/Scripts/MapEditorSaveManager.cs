@@ -25,7 +25,7 @@ namespace Flexus.ParticleMapEditor.Editor
         [Group(nameof(MapEditorConfig) + "/Save")]
         [SerializeField] private string _saveName;
 
-        [Group(nameof(MapEditorConfig) + "/Save")]
+        [Group(nameof(MapEditorConfig) + "/Save"), DisableIf(nameof(IsEditMode))]
         [Button]
         private void Save()
         {
@@ -52,7 +52,7 @@ namespace Flexus.ParticleMapEditor.Editor
             return assets.Select(_ => new TriDropdownItem<MapEditorConfig> { Text = _.name, Value = _ });
         }
 
-        [Group(nameof(MapEditorConfig) + "/Load")]
+        [Group(nameof(MapEditorConfig) + "/Load"), DisableIf(nameof(IsEditMode))]
         [Button]
         private void Load()
         {
@@ -66,11 +66,6 @@ namespace Flexus.ParticleMapEditor.Editor
             Existing
         }
 
-        //[Group("Map")]
-        //[ShowInInspector] private ExportType _exportType;
-        //[Group("Map"), ShowIf(nameof(_exportType), ExportType.NewFile), ValidateInput(nameof(ValidateName))]
-        //[ShowInInspector] private string _exportFileName;
-        //[Group("Map"), ShowIf(nameof(_exportType), ExportType.Existing), Required]
         private IMapConfig _mapConfig => _mapConfigAsset as IMapConfig;
 
         private IEnumerable<TriDropdownItem<ScriptableObject>> MapConfigAssets
@@ -79,26 +74,7 @@ namespace Flexus.ParticleMapEditor.Editor
         [Group("Map"), Dropdown(nameof(MapConfigAssets))]
         [SerializeField] private ScriptableObject _mapConfigAsset;
 
-        //private bool CanExport => (_exportType is ExportType.NewFile && !string.IsNullOrEmpty(_exportFileName))
-        //    || (_exportType is ExportType.Existing && _mapConfig != null);
-        private bool CanExport => _mapConfig != null;
-
-        //private TriValidationResult ValidateName()
-        //{
-        //    if (string.IsNullOrEmpty(_exportFileName))
-        //        return TriValidationResult.Error("Name is empty");
-
-        //    return TriValidationResult.Valid;
-        //}
-
-        //private TriValidationResult ValidateExport()
-        //{
-        //    if (string.IsNullOrEmpty(_exportFileName))
-        //        return TriValidationResult.Warning("Export NOT available in edit mode.");
-
-        //    return TriValidationResult.Valid;
-        //}
-
+        private bool CanExport => _mapConfig != null && !IsEditMode;
         private bool IsEditMode => _generator.Particles.Count == 0;
 
         public struct MapResourceData
@@ -154,11 +130,8 @@ namespace Flexus.ParticleMapEditor.Editor
                 UsedResourceConfigs = resourceTypesArgs.ToArray(),
                 ResourceDatas = resources.ToArray(),
             };
-
-            //if (_exportType is ExportType.NewFile)
-            //    ExportToNewFile(args);
-            //else
-                ExportToExistingMap(args);
+            
+            ExportToExistingMap(args);
         }
 
         private struct ExportArgs
@@ -172,13 +145,6 @@ namespace Flexus.ParticleMapEditor.Editor
             SetArgsToMap(args, _mapConfig);
             EditorUtility.SetDirty(_mapConfigAsset);
         }
-
-        //private void ExportToNewFile(ExportArgs args)
-        //{
-        //    MapConfig map = ScriptableObject.CreateInstance<MapConfig>();
-        //    SetArgsToMap(args, map);
-        //    DataSaveLoadTools.SaveAsset(_mapConfigsPath, _exportFileName, map);
-        //}
 
         private static void SetArgsToMap(ExportArgs args, IMapConfig map)
         {
@@ -196,9 +162,12 @@ namespace Flexus.ParticleMapEditor.Editor
         private MapEditorConfig BuildSaveData()
         {
             MapEditorConfig data = ScriptableObject.CreateInstance<MapEditorConfig>();
-            data.AreaSize = _generator.Settings.AreaSize;
-            data.Density = _generator.Settings.Density;
-            data.Damp = _generator.Settings.Damp;
+            ParticleSettings settings = _generator.Settings;
+            data.AreaSize = settings.AreaSize;
+            data.Density = settings.Density;
+            data.Damp = settings.Damp;
+            data.TypesConfig = settings.TypesConfig;
+            data.ResLock = settings.ResLock;
             data.SetTexture(_painter.GetTexureColors());
             data.Particles = _generator.Particles.Select(_ => new MapEditorConfig.ParticleArgs() { Position = _.CurrentPosition }).ToList();
 
@@ -207,12 +176,25 @@ namespace Flexus.ParticleMapEditor.Editor
 
         private void ApplyEditorData(MapEditorConfig data)
         {
+            ParticleSettings settings = _generator.Settings;
+
             if (data.AreaSize != 0)
-            {
-                _generator.Settings.AreaSize = data.AreaSize;
-                _generator.Settings.Density = data.Density;
-                _generator.Settings.Damp = data.Damp;
-            }
+                settings.AreaSize = data.AreaSize;
+
+            if(data.Density != Vector2.zero)
+                settings.Density = data.Density;
+
+            if(data.Damp != 0) 
+                settings.Damp = data.Damp;
+
+            if(data.TypesConfig != null)
+                settings.TypesConfig = data.TypesConfig;
+
+            if(data.ResLock != null)
+                foreach (var loaded in data.ResLock)
+                    foreach (var current in settings.ResLock)
+                        if (loaded.Type.Id == current.Type.Id)
+                            current.IsLocked = loaded.IsLocked;
 
             if(data.Texture != null)
                 _painter.SetTexturePixels(data.GetTexture());

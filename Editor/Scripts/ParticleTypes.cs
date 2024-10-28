@@ -12,6 +12,11 @@ namespace Flexus.ParticleMapEditor.Editor
         public List<ParticleType> Types;
 
 #if UNITY_EDITOR
+        private void OnEnable()
+        {
+            Types.ForEach(_ => _.CheckAndFixId());
+        }
+
         //[Button, PropertyOrder(-1000)]
         //private void AddType()
         //{

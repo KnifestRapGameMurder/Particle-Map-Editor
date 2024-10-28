@@ -62,6 +62,8 @@ namespace Flexus.ParticleMapEditor.Editor
 
         private IEnumerator Start()
         {
+            Settings.UpdateResLock();
+
             foreach (var type in Types)
             {
                 _radiusToSquare[type.Radius] = Mathf.PI * type.Radius * type.Radius;
@@ -149,14 +151,32 @@ namespace Flexus.ParticleMapEditor.Editor
                 _particles.RemoveAt(0);
         }
 
+        private Dictionary<string, bool> _isResLocked = new();
+
+        private bool IsResLocked(ParticleType type) 
+            => type != null && _isResLocked.ContainsKey(type.Id) && _isResLocked[type.Id];
+
         //[Button]
         public void PaintParticles()
         {
             float totalArea = 0;
 
+            //Debug.Log(string.Join(", ", Settings.ResLock));
+
+            Settings.ResLock.ForEach(_ => _isResLocked[_.Type.Id] = _.IsLocked);
+
+            //Debug.Log(string.Join(", ", _isResLocked));
+            
             for (int i = 0; i < _particles.Count; i++)
             {
-                PaintParticle(_particles[i]);
+                if (!IsResLocked(_particles[i].Type))
+                {
+                    //Debug.Log(_particles[i].Type != null 
+                    //    ? _particles[i].Type.Id 
+                    //    : null);   
+
+                    PaintParticle(_particles[i]);
+                }
 
                 if (!_radiusToSquare.ContainsKey(_particles[i].ParticleRadius))
                     _radiusToSquare[_particles[i].ParticleRadius] = Mathf.PI * _particles[i].ParticleRadius * _particles[i].ParticleRadius;
@@ -226,6 +246,10 @@ namespace Flexus.ParticleMapEditor.Editor
             if(!isNonResource)
             {
                 ParticleType type = Types.OrderBy(_ => ColorToVector3(_.Color - color).sqrMagnitude).First();
+
+                if (IsResLocked(type))
+                    return;
+
                 particle.Material = _typeMaterials[type];
                 particle.BaseRadius = type.Radius;
                 particle.Type = type;
@@ -268,14 +292,19 @@ namespace Flexus.ParticleMapEditor.Editor
 
         private void UpdatePosition(float deltaTime)
         {
-            _particles.ForEach(_ => _.UpdatePosition(deltaTime, Damp));
+            foreach (var particle in _particles)
+                if(!IsResLocked(particle.Type))
+                    particle.UpdatePosition(deltaTime, Damp);
         }
 
         private void KeepParticlesInsideSquare()
         {
             Vector2 minBounds = Vector2.one * AreaSize * -0.5f;
             Vector2 maxBounds = Vector2.one * AreaSize * 0.5f;
-            _particles.ForEach(_ => _.KeepInsideSquare(minBounds, maxBounds));
+
+            foreach (var particle in _particles)
+                if (!IsResLocked(particle.Type))
+                    particle.KeepInsideSquare(minBounds, maxBounds);
         }
 
         private void HandleCollisions()
@@ -323,9 +352,19 @@ namespace Flexus.ParticleMapEditor.Editor
                 Vector2 n = collisionAxis / dist;
                 float delta = minDist - dist;
 
+                bool isLocked1 = IsResLocked(particle1.Type);
+                bool isLocked2 = IsResLocked(particle2.Type);
+
                 // Adjust positions to resolve overlap
-                particle1.CurrentPosition += 0.5f * delta * n;
-                particle2.CurrentPosition -= 0.5f * delta * n;
+                if (isLocked1 == isLocked2)
+                {
+                    particle1.CurrentPosition += 0.5f * delta * n;
+                    particle2.CurrentPosition -= 0.5f * delta * n;
+                }
+                else if(isLocked1)
+                    particle2.CurrentPosition -= delta * n;
+                else
+                    particle1.CurrentPosition += delta * n;
             }
         }
 
