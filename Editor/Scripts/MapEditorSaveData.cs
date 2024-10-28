@@ -17,6 +17,8 @@ namespace Flexus.ParticleMapEditor.Editor
         [MinMaxSlider(0, 1)]
         public Vector2 Density;
         public float Damp;
+        public ParticleTypes TypesConfig;
+        public List<ParticleSettings.ResLockArgs> ResLock;
 
         public void SetTexture(Dictionary<Vector2Int, Color> texture)
         {

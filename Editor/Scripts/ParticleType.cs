@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using TriInspector;
+using System;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
@@ -11,6 +12,33 @@ namespace Flexus.ParticleMapEditor.Editor
     [System.Serializable]
     public class ParticleType
     {
+        [HideInInspector]
+        [SerializeField] private string _guid;
+
+        public string Id => _guid;
+
+        public ParticleType()
+        {
+            //Debug.LogWarning("ParticleType");
+            SetNewId();
+        }
+
+        public void CheckAndFixId()
+        {
+            //Debug.Log($"ParticleType.CheckAndFixId: {_guid}");
+
+            if(string.IsNullOrEmpty(_guid))
+                SetNewId();
+
+            //Debug.Log($"AfterCheck: {_guid}");
+        }
+
+        private void SetNewId()
+        {
+            _guid = Guid.NewGuid().ToString();
+            //Debug.LogWarning($"{nameof(ParticleType)}.{nameof(SetNewId)}: Id = {Id}");
+        }
+
         private IEnumerable<TriDropdownItem<ScriptableObject>> ResourceConfigAssets 
             => EditorUtils.GetAllResourceConfigAssets();
 
@@ -22,12 +50,6 @@ namespace Flexus.ParticleMapEditor.Editor
         private void OpenResConfig()
         {
             EditorUtils.OpenScriptableObjectInInspector(_resourceConfigAsset);
-        }
-
-        private TriValidationResult ValidateTexture()
-        {
-            if (_resourceConfigAsset == null) return TriValidationResult.Error("Tex is null");
-            return TriValidationResult.Valid;
         }
 
         [Group("Particle")]
@@ -65,11 +87,6 @@ namespace Flexus.ParticleMapEditor.Editor
 
                 return ResourceConfig.MeshScale;
             }
-        }
-
-        public ParticleType()
-        {
-            //Debug.LogWarning("ParticleType");
         }
     }
 }

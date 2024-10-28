@@ -5,6 +5,7 @@ using TriInspector;
 using System;
 using JetBrains.Annotations;
 using UnityEngine.UI;
+using UnityEditor;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
@@ -15,30 +16,74 @@ namespace Flexus.ParticleMapEditor.Editor
     [CreateAssetMenu(fileName = Constants.Settings, menuName = Constants.MapGenerating + "/" + Constants.Settings)]
     public class ParticleSettings : ScriptableObject
     {
-        [Group(Constants.ParticleControls), InlineEditor]
+        [Group(Constants.ParticleControls), GUIColor("$" + nameof(_particleControlsGroupColor)), InlineEditor]
         [SerializeField] private ParticleTypes _types;
-        [Group(Constants.ParticleControls)] 
+        [Group(Constants.ParticleControls), GUIColor("$" + nameof(_particleControlsGroupColor))] 
         public float AreaSize = 50;
-        [Group(Constants.ParticleControls), MinMaxSlider(0, 1)] 
+        [Group(Constants.ParticleControls), GUIColor("$" + nameof(_particleControlsGroupColor)), MinMaxSlider(0, 1)] 
         public Vector2 Density = new Vector2(0.85f, 0.9f);
-        [Group(Constants.ParticleControls), Range(0, 1)] 
+        [Group(Constants.ParticleControls), Range(0, 1), GUIColor("$" + nameof(_particleControlsGroupColor))] 
         public float Damp = 0.5f;
-        [Group(Constants.ParticleControls)] 
+        [Group(Constants.ParticleControls), GUIColor("$" + nameof(_particleControlsGroupColor))] 
         public bool Update = true;
+        [Group(Constants.ParticleControls),
+            GUIColor("$" + nameof(_particleControlsGroupColor)),
+            TableList(Draggable = false, HideAddButton = true, HideRemoveButton = true, AlwaysExpanded = true),]
+        public List<ResLockArgs> ResLock;
 
-        [Group(Constants.VisualizationControls)] 
+        #region ResLock
+        [Serializable]
+        public class ResLockArgs
+        {
+            [HideInInspector]
+            public ParticleType Type;
+            [GUIColor("$" + nameof(ResColor))]
+            public bool IsLocked;
+
+            [ShowInInspector, GUIColor("$" + nameof(ResColor))]
+            private string ResName => HasType ? Type.Name : "NO RES CONFIG";
+            private Color ResColor => HasType ? Type.Color : default;
+            private bool HasType => Type != null && Type.ResourceConfig != null;
+
+            public override string ToString()
+            {
+                return $"{nameof(ResLockArgs)} {{ Type = {Type.Name}/{Type.Id}, IsLocked = {IsLocked} }}";
+            }
+        }
+
+        private void OnValidate()
+        {
+            UpdateResLock();
+            EditorUtility.SetDirty(this);
+        }
+
+        [Group(Constants.Dev)]
+        [Button]
+        public void UpdateResLock()
+        {
+            ResLock = _types.Types.OrderBy(_=>_.Name).Select(_ => new ResLockArgs
+            {
+                Type = _,
+                IsLocked = ResLock != null && ResLock.Any(current => current.Type.Id == _.Id && current.IsLocked),
+            }).ToList();
+        }
+
+        public bool IsResLocked(ParticleType type) => ResLock.Any(_=>_.Type.Id == type.Id && _.IsLocked);
+        #endregion
+
+        [Group(Constants.VisualizationControls), GUIColor("$" + nameof(_visualizationControlsGroupColor))] 
         public bool DrawResourses;
-        [Group(Constants.VisualizationControls), Range(0.1f, 2f)] 
+        [Group(Constants.VisualizationControls), Range(0.1f, 2f), GUIColor("$" + nameof(_visualizationControlsGroupColor))] 
         public float CameraDistance;
-        [Group(Constants.VisualizationControls), Range(0, 45)] 
+        [Group(Constants.VisualizationControls), Range(0, 45), GUIColor("$" + nameof(_visualizationControlsGroupColor))] 
         public float CameraRotationSpeed;
         
-        [Group(Constants.PaintingControls), Range(0f, 0.5f)]
+        [Group(Constants.PaintingControls), Range(0f, 0.5f), GUIColor("$" + nameof(_paintingControlsGroupColor))]
         public float BrushSize = 0.1f;
-
-        [Group(Constants.PaintingControls), Dropdown(nameof(_typeNames))]
+        [Group(Constants.PaintingControls), GUIColor("$" + nameof(BrushColor)), Dropdown(nameof(_typeNames))]
         [SerializeField] private string _type;
 
+        #region Dev
         [Group(Constants.Dev)] 
         public int InitialCount;
         [Group(Constants.Dev)] 
@@ -53,14 +98,6 @@ namespace Flexus.ParticleMapEditor.Editor
         public float CellSize = 5f;
         [Group(Constants.Dev)] 
         public float RepaintTimeStep;
-        //[Group(Constants.Dev)] 
-        //public Color VoidColor;
-        //[Group(Constants.Dev)] 
-        //public float VoidParticleRadius;
-        //[Group(Constants.Dev)] 
-        //public Color EmptyGroundColor;
-        //[Group(Constants.Dev)] 
-        //public float EmptyGroundParticleRadius;
         [Group(Constants.Dev)] 
         public float ColorCompareTolerance;
         [Group(Constants.Dev)] 
@@ -75,6 +112,12 @@ namespace Flexus.ParticleMapEditor.Editor
             new NonResourceParticleArgs("_Border", Color.grey, 0.5f),
             new NonResourceParticleArgs("_Ground", Color.green, 0.5f),
         };
+        [Group(Constants.Dev)]
+        [SerializeField] private Color _particleControlsGroupColor;
+        [Group(Constants.Dev)]
+        [SerializeField] private Color _visualizationControlsGroupColor;
+        [Group(Constants.Dev)]
+        [SerializeField] private Color _paintingControlsGroupColor;
 
         [Serializable]
         public struct NonResourceParticleArgs
@@ -90,15 +133,19 @@ namespace Flexus.ParticleMapEditor.Editor
                 Radius = radius;
             }
         }
+        #endregion
 
-        [UsedImplicitly]
         private List<string> _typeNames => _nonResourceParticles.Select(_ => _.Name).Concat(Types.Select(_ => _.Name)).ToList();
 
         public float AreaCoeffMin => Density.x;
         public float AreaCoeffMax => Density.y;
-        public List<ParticleType> Types => _types.Types;
+        public ParticleTypes TypesConfig
+        {
+            get => _types;
+            set => _types = value;
+        }
+        public List<ParticleType> Types => TypesConfig.Types;
         public List<NonResourceParticleArgs> NonResourceParticles => _nonResourceParticles;
-
         public Color BrushColor
         {
             get
