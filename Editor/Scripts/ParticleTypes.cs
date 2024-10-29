@@ -17,17 +17,24 @@ namespace Flexus.ParticleMapEditor.Editor
             Types.ForEach(_ => _.CheckAndFixId());
         }
 
-        //[Button, PropertyOrder(-1000)]
-        //private void AddType()
-        //{
-        //    ParticleType newType = new()
-        //    {
-        //        Name = "New Type " + Types.Count,
-        //        Color = Random.ColorHSV()
-        //    };
+        [Button("Check and Fix Ids")]
+        private void OnValidate()
+        {
+            //Debug.Log("OnValidate");
+            
+            for (int i = 0; i < Types.Count - 1; i++)
+            {
+                for (int j = i + 1; j < Types.Count; j++)
+                {
+                    //Debug.Log($"{i} {j}");
 
-        //    Types.Add(newType);
-        //}
+                    if (Types[i].Id == Types[j].Id)
+                    {
+                        Types[j].UpdateId();
+                    }
+                }
+            }
+        }
 #endif
     }
 }

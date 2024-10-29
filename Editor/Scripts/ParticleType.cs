@@ -20,7 +20,7 @@ namespace Flexus.ParticleMapEditor.Editor
         public ParticleType()
         {
             //Debug.LogWarning("ParticleType");
-            SetNewId();
+            UpdateId();
         }
 
         public void CheckAndFixId()
@@ -28,12 +28,12 @@ namespace Flexus.ParticleMapEditor.Editor
             //Debug.Log($"ParticleType.CheckAndFixId: {_guid}");
 
             if(string.IsNullOrEmpty(_guid))
-                SetNewId();
+                UpdateId();
 
             //Debug.Log($"AfterCheck: {_guid}");
         }
 
-        private void SetNewId()
+        public void UpdateId()
         {
             _guid = Guid.NewGuid().ToString();
             //Debug.LogWarning($"{nameof(ParticleType)}.{nameof(SetNewId)}: Id = {Id}");
