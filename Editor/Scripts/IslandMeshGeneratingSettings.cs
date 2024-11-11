@@ -1,0 +1,22 @@
+﻿using UnityEngine;
+
+namespace Flexus.ParticleMapEditor.Editor
+{
+    [CreateAssetMenu(menuName = nameof(IslandMeshGeneratingSettings))]
+    public class IslandMeshGeneratingSettings : ScriptableObject
+    {
+        public Texture2D islandTexture;
+        public int areaSize = 100;
+        [Range(1, 5)] public int pixelsPerUnit = 1;
+        [Range(0, 3)] public float borderRadius = 1f;
+        [Range(0, 3)] public float blurRadius = 1f;
+        [Range(-2, 2)] public int blurPower = 0;
+        [Range(-2, 2)] public int meshResolutionPower = 0;
+        [Range(1, 5)] public float islandHeight;
+
+        public bool resize = true;
+        public bool normalizeColor = true;
+        public bool addBorders = true;
+        public bool blur = true;
+    }
+}

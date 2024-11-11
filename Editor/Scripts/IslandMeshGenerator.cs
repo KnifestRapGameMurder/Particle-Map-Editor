@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using UnityEngine.UI;
 using TriInspector; // Assuming you're using TriInspector
 
@@ -6,83 +7,100 @@ namespace Flexus.ParticleMapEditor.Editor
 {
     public class IslandMeshGenerator : MonoBehaviour
     {
-        public Texture2D islandTexture; // The mask texture
-        public int upscaleFactor = 4; // How much to upscale the texture for smoothing
-        public int blurIterations = 3; // Number of times to apply the blur
-        public float blurRadius = 1f; // Radius of the Gaussian blur
-        public float width = 10f; // Width of the generated island in X and Z
-        public float height = 5f; // Height of the generated island in Y
-        public int meshResolution = 256; // Resolution of the grid (vertices along X and Z)
-        public RawImage texturePreview; // Assign a UI RawImage in the inspector to display the preview
-        public MeshFilter meshFilter; // Assign the MeshFilter in the inspector to display the generated mesh
+        public IslandMeshGeneratingSettings settings;
+        public MeshFilter meshFilter;
+        public RawImage texturePreview;
 
-        [Button("Preview Upscaled Texture and Generate Mesh")]
-        public void PreviewUpscaledTextureAndGenerateMesh()
+        private Texture2D IslandTexture => settings.islandTexture;
+        private int AreaSize => settings.areaSize;
+        private int PixelsPerUnit => settings.pixelsPerUnit;
+        private float BorderRadius => settings.borderRadius;
+        private float BlurRadius => settings.blurRadius;
+        private int BlurPower => settings.blurPower;
+        private int MeshResolutionPower => settings.meshResolutionPower;
+        private float IslandHeight => settings.islandHeight;
+        private bool IsResize => settings.resize;
+        private bool IsNormalizeColor => settings.normalizeColor;
+        private bool IsAddBorders => settings.addBorders;
+        private bool IsBlur => settings.blur;
+
+        [Button("Generate")]
+        public void Generate()
         {
-            if (islandTexture == null)
+            if (IslandTexture == null)
             {
                 Debug.LogError("Island Texture is not assigned!");
                 return;
             }
 
-            // Step 1: Upscale the texture
-            Texture2D upscaledTexture = UpscaleTexture(islandTexture, upscaleFactor);
+            var texture = IslandTexture;
 
-            // Step 2: Convert non-black areas to white (creating a clean black-and-white mask)
-            Texture2D blackAndWhiteTexture = ConvertToBlackAndWhite(upscaledTexture);
+            if (IsResize) texture = ResizeTexture(texture, AreaSize * PixelsPerUnit, AreaSize * PixelsPerUnit);
+            if (IsNormalizeColor) texture = ConvertToBlackAndWhite(texture);
+            if (IsAddBorders) texture = AddBorders(texture, BorderRadius * PixelsPerUnit);
+            if (IsBlur) texture = BlurTexture(texture, BlurRadius * PixelsPerUnit, Mathf.Pow(2, BlurPower));
 
-            // Step 3: Apply Gaussian blur to create smooth edges
-            Texture2D blurredTexture = ApplyGaussianBlur(blackAndWhiteTexture, blurIterations, blurRadius);
+            DisplayTexture(texture);
 
-            // Step 4: Display the upscaled and modified texture in the UI
-            DisplayTexture(blurredTexture);
-
-            // Step 5: Generate the mesh based on the blurred texture (used as a heightmap)
-            Mesh islandMesh = GenerateIslandMesh(blurredTexture, width, height, meshResolution);
+            var meshResolution = (int)(AreaSize * Math.Pow(2, MeshResolutionPower));
+            var islandMesh = GenerateIslandMesh(texture, AreaSize, IslandHeight, meshResolution);
             meshFilter.mesh = islandMesh;
         }
 
+        private static Texture2D ResizeTexture(Texture2D texture, int width, int height)
+        {
+            var rt = RenderTexture.GetTemporary(width, height);
+            RenderTexture.active = rt;
+
+            // Copy the original texture to the render texture at the new size
+            Graphics.Blit(texture, rt);
+
+            // Create a new Texture2D with the resized dimensions
+            var resizedTexture = new Texture2D(width, height, texture.format, false);
+            resizedTexture.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+            resizedTexture.Apply();
+
+            // Clean up
+            RenderTexture.active = null;
+            RenderTexture.ReleaseTemporary(rt);
+
+            return resizedTexture;
+        }
+
+
         Texture2D UpscaleTexture(Texture2D texture, int factor)
         {
-            int newWidth = texture.width * factor;
-            int newHeight = texture.height * factor;
-            Texture2D upscaledTexture = new Texture2D(newWidth, newHeight);
+            var newWidth = texture.width * factor;
+            var newHeight = texture.height * factor;
+            var upscaledTexture = new Texture2D(newWidth, newHeight);
 
-            for (int y = 0; y < newHeight; y++)
+            for (var y = 0; y < newHeight; y++)
             {
-                for (int x = 0; x < newWidth; x++)
+                for (var x = 0; x < newWidth; x++)
                 {
                     // Nearest neighbor upscale
-                    Color color = texture.GetPixel(x / factor, y / factor);
+                    var color = texture.GetPixel(x / factor, y / factor);
                     upscaledTexture.SetPixel(x, y, color);
                 }
             }
+
             upscaledTexture.Apply();
             return upscaledTexture;
         }
 
-        Texture2D ConvertToBlackAndWhite(Texture2D texture)
+        private static Texture2D ConvertToBlackAndWhite(Texture2D texture)
         {
-            int width = texture.width;
-            int height = texture.height;
+            var width = texture.width;
+            var height = texture.height;
 
-            Texture2D blackAndWhiteTexture = new Texture2D(width, height);
+            var blackAndWhiteTexture = new Texture2D(width, height);
 
-            for (int y = 0; y < height; y++)
+            for (var y = 0; y < height; y++)
             {
-                for (int x = 0; x < width; x++)
+                for (var x = 0; x < width; x++)
                 {
-                    Color color = texture.GetPixel(x, y);
-
-                    // If the pixel is not close to black, convert it to white
-                    if (color.grayscale > 0.1f) // Treat anything with intensity > 0.1 as non-black
-                    {
-                        blackAndWhiteTexture.SetPixel(x, y, Color.white);
-                    }
-                    else
-                    {
-                        blackAndWhiteTexture.SetPixel(x, y, Color.black);
-                    }
+                    var color = texture.GetPixel(x, y);
+                    blackAndWhiteTexture.SetPixel(x, y, color.grayscale > 0.1f ? Color.white : Color.black);
                 }
             }
 
@@ -90,40 +108,113 @@ namespace Flexus.ParticleMapEditor.Editor
             return blackAndWhiteTexture;
         }
 
-        Texture2D ApplyGaussianBlur(Texture2D texture, int iterations, float radius)
+        private static Texture2D AddBorders(Texture2D texture, float radius)
         {
-            Texture2D blurredTexture = texture;
+            var blurredTexture = new Texture2D(texture.width, texture.height);
+            var width = texture.width;
+            var height = texture.height;
 
-            for (int i = 0; i < iterations; i++)
+            var originalPixels = texture.GetPixels();
+            var blurredPixels = new Color[originalPixels.Length];
+
+            var radiusInt = Mathf.CeilToInt(radius);
+
+            for (var x = 0; x < width; x++)
             {
-                blurredTexture = GaussianBlur(blurredTexture, radius);
+                for (var y = 0; y < height; y++)
+                {
+                    var blurredPixel = new Color(0, 0, 0, 0);
+
+                    for (var i = -radiusInt; i <= radiusInt; i++)
+                    {
+                        for (var j = -radiusInt; j <= radiusInt; j++)
+                        {
+                            var sampleX = Mathf.Clamp(x + i, 0, width - 1);
+                            var sampleY = Mathf.Clamp(y + j, 0, height - 1);
+
+                            var sampled = originalPixels[sampleY * width + sampleX];
+                            blurredPixel.r = Mathf.Max(blurredPixel.r, sampled.r);
+                            blurredPixel.g = Mathf.Max(blurredPixel.g, sampled.g);
+                            blurredPixel.b = Mathf.Max(blurredPixel.b, sampled.b);
+                            blurredPixel.a = Mathf.Max(blurredPixel.a, sampled.a);
+                        }
+                    }
+
+                    blurredPixels[y * width + x] = blurredPixel;
+                }
             }
 
+            blurredTexture.SetPixels(blurredPixels);
+            blurredTexture.Apply();
             return blurredTexture;
         }
 
-        Texture2D GaussianBlur(Texture2D texture, float radius)
+        private static Texture2D BlurTexture(Texture2D texture, float radius, float power = 1f)
         {
-            int width = texture.width;
-            int height = texture.height;
-            Texture2D blurredTexture = new Texture2D(width, height);
+            var blurredTexture = new Texture2D(texture.width, texture.height);
+            var width = texture.width;
+            var height = texture.height;
 
-            float[] kernel = GenerateGaussianKernel(radius);
-            int kernelSize = kernel.Length;
+            var originalPixels = texture.GetPixels();
+            var blurredPixels = new Color[originalPixels.Length];
+
+            var radiusInt = Mathf.CeilToInt(radius);
+
+            for (var x = 0; x < width; x++)
+            {
+                for (var y = 0; y < height; y++)
+                {
+                    var blurredPixel = new Color(0, 0, 0, 0);
+                    var sampleCount = 0;
+
+                    for (var i = -radiusInt; i <= radiusInt; i++)
+                    {
+                        for (var j = -radiusInt; j <= radiusInt; j++)
+                        {
+                            var sampleX = Mathf.Clamp(x + i, 0, width - 1);
+                            var sampleY = Mathf.Clamp(y + j, 0, height - 1);
+
+                            blurredPixel += originalPixels[sampleY * width + sampleX];
+                            sampleCount++;
+                        }
+                    }
+
+                    blurredPixel /= sampleCount;
+                    blurredPixel.r = Mathf.Pow(blurredPixel.r, power);
+                    blurredPixel.g = Mathf.Pow(blurredPixel.g, power);
+                    blurredPixel.b = Mathf.Pow(blurredPixel.b, power);
+                    blurredPixels[y * width + x] = blurredPixel;
+                }
+            }
+
+            blurredTexture.SetPixels(blurredPixels);
+            blurredTexture.Apply();
+            return blurredTexture;
+        }
+
+
+        private static Texture2D GaussianBlur(Texture2D texture, float radius)
+        {
+            var width = texture.width;
+            var height = texture.height;
+            var blurredTexture = new Texture2D(width, height);
+
+            var kernel = GenerateGaussianKernel(radius);
+            var kernelSize = kernel.Length;
 
             // Apply blur horizontally
-            for (int y = 0; y < height; y++)
+            for (var y = 0; y < height; y++)
             {
-                for (int x = 0; x < width; x++)
+                for (var x = 0; x < width; x++)
                 {
-                    Color blurredColor = new Color(0, 0, 0);
-                    float weightSum = 0f;
+                    var blurredColor = new Color(0, 0, 0);
+                    var weightSum = 0f;
 
-                    for (int k = -kernelSize / 2; k <= kernelSize / 2; k++)
+                    for (var k = -kernelSize / 2; k <= kernelSize / 2; k++)
                     {
-                        int sampleX = Mathf.Clamp(x + k, 0, width - 1);
-                        Color sampleColor = texture.GetPixel(sampleX, y);
-                        float weight = kernel[k + kernelSize / 2];
+                        var sampleX = Mathf.Clamp(x + k, 0, width - 1);
+                        var sampleColor = texture.GetPixel(sampleX, y);
+                        var weight = kernel[k + kernelSize / 2];
                         blurredColor += sampleColor * weight;
                         weightSum += weight;
                     }
@@ -135,20 +226,20 @@ namespace Flexus.ParticleMapEditor.Editor
             blurredTexture.Apply();
 
             // Apply blur vertically
-            Texture2D finalBlurredTexture = new Texture2D(width, height);
+            var finalBlurredTexture = new Texture2D(width, height);
 
-            for (int y = 0; y < height; y++)
+            for (var y = 0; y < height; y++)
             {
-                for (int x = 0; x < width; x++)
+                for (var x = 0; x < width; x++)
                 {
-                    Color blurredColor = new Color(0, 0, 0);
-                    float weightSum = 0f;
+                    var blurredColor = new Color(0, 0, 0);
+                    var weightSum = 0f;
 
-                    for (int k = -kernelSize / 2; k <= kernelSize / 2; k++)
+                    for (var k = -kernelSize / 2; k <= kernelSize / 2; k++)
                     {
-                        int sampleY = Mathf.Clamp(y + k, 0, height - 1);
-                        Color sampleColor = blurredTexture.GetPixel(x, sampleY);
-                        float weight = kernel[k + kernelSize / 2];
+                        var sampleY = Mathf.Clamp(y + k, 0, height - 1);
+                        var sampleColor = blurredTexture.GetPixel(x, sampleY);
+                        var weight = kernel[k + kernelSize / 2];
                         blurredColor += sampleColor * weight;
                         weightSum += weight;
                     }
@@ -161,15 +252,15 @@ namespace Flexus.ParticleMapEditor.Editor
             return finalBlurredTexture;
         }
 
-        float[] GenerateGaussianKernel(float radius)
+        private static float[] GenerateGaussianKernel(float radius)
         {
-            int size = Mathf.CeilToInt(radius * 3f) * 2 + 1; // Kernel size based on radius
-            float[] kernel = new float[size];
-            float sigma = radius / 2f;
-            float sum = 0f;
-            int halfSize = size / 2;
+            var size = Mathf.CeilToInt(radius * 3f) * 2 + 1; // Kernel size based on radius
+            var kernel = new float[size];
+            var sigma = radius / 2f;
+            var sum = 0f;
+            var halfSize = size / 2;
 
-            for (int i = 0; i < size; i++)
+            for (var i = 0; i < size; i++)
             {
                 float x = i - halfSize;
                 kernel[i] = Mathf.Exp(-x * x / (2 * sigma * sigma)) / (Mathf.Sqrt(2 * Mathf.PI) * sigma);
@@ -177,7 +268,7 @@ namespace Flexus.ParticleMapEditor.Editor
             }
 
             // Normalize the kernel
-            for (int i = 0; i < size; i++)
+            for (var i = 0; i < size; i++)
             {
                 kernel[i] /= sum;
             }
@@ -185,36 +276,38 @@ namespace Flexus.ParticleMapEditor.Editor
             return kernel;
         }
 
-        Mesh GenerateIslandMesh(Texture2D texture, float width, float height, int resolution)
+        private static Mesh GenerateIslandMesh(Texture2D texture, float width, float height, int resolution)
         {
-            int texWidth = texture.width;
-            int texHeight = texture.height;
+            var texWidth = texture.width;
+            var texHeight = texture.height;
+
+            resolution += 1;
 
             // Create a grid mesh with the specified resolution
-            Vector3[] vertices = new Vector3[resolution * resolution];
-            Vector2[] uvs = new Vector2[resolution * resolution];
-            int[] triangles = new int[(resolution - 1) * (resolution - 1) * 6];
+            var vertices = new Vector3[resolution * resolution];
+            var uvs = new Vector2[resolution * resolution];
+            var triangles = new int[(resolution - 1) * (resolution - 1) * 6];
 
-            float scaleX = width / (resolution - 1);
-            float scaleZ = width / (resolution - 1);
+            var scaleX = width / (resolution - 1);
+            var scaleZ = width / (resolution - 1);
 
-            int vertexIndex = 0;
-            int triangleIndex = 0;
+            var vertexIndex = 0;
+            var triangleIndex = 0;
 
-            for (int y = 0; y < resolution; y++)
+            for (var y = 0; y < resolution; y++)
             {
-                for (int x = 0; x < resolution; x++)
+                for (var x = 0; x < resolution; x++)
                 {
                     // World position
-                    float posX = x * scaleX - width / 2;
-                    float posZ = y * scaleZ - width / 2;
+                    var posX = x * scaleX - width / 2;
+                    var posZ = y * scaleZ - width / 2;
 
                     // Sample height from the blurred texture
-                    float texU = (float)x / resolution * texWidth;
-                    float texV = (float)y / resolution * texHeight;
-                    float pixelHeight = texture.GetPixelBilinear(texU / texWidth, texV / texHeight).grayscale;
+                    var texU = (float)x / resolution * texWidth;
+                    var texV = (float)y / resolution * texHeight;
+                    var pixelHeight = texture.GetPixelBilinear(texU / texWidth, texV / texHeight).grayscale;
 
-                    float posY = pixelHeight * height;
+                    var posY = pixelHeight * height - height;
 
                     // Set vertex position and UVs
                     vertices[vertexIndex] = new Vector3(posX, posY, posZ);
@@ -223,10 +316,10 @@ namespace Flexus.ParticleMapEditor.Editor
                     // Create triangles if not on the last row/column
                     if (x < resolution - 1 && y < resolution - 1)
                     {
-                        int a = vertexIndex;
-                        int b = vertexIndex + resolution;
-                        int c = vertexIndex + resolution + 1;
-                        int d = vertexIndex + 1;
+                        var a = vertexIndex;
+                        var b = vertexIndex + resolution;
+                        var c = vertexIndex + resolution + 1;
+                        var d = vertexIndex + 1;
 
                         // First triangle
                         triangles[triangleIndex] = a;
@@ -246,7 +339,7 @@ namespace Flexus.ParticleMapEditor.Editor
             }
 
             // Create mesh
-            Mesh mesh = new Mesh();
+            var mesh = new Mesh();
             mesh.vertices = vertices;
             mesh.uv = uvs;
             mesh.triangles = triangles;

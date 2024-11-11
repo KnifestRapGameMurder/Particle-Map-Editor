@@ -4,7 +4,7 @@ Shader "Unlit/ReceiveShadowsWithMovingOtherTex"
     {
         _MainTex ("Main Texture", 2D) = "white" {}  // Main texture
         _OtherTex ("Other Texture", 2D) = "white" {} // Other texture
-        _MaskTex ("Mask Texture", 2D) = "white" {}   // Mask texture
+        _MaskTex ("Mask Texture", 2D) = "black" {}   // Mask texture
         _Color ("Tint Color", Color) = (1, 1, 1, 1)  // Color tint for main texture
         _OtherColor ("Other Tint Color", Color) = (1, 1, 1, 1) // Color tint for other texture
         _MoveSpeed ("Other Texture Move Speed", float) = 1.0  // Speed of the moving texture
