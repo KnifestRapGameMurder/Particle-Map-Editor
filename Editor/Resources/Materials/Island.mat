@@ -22,13 +22,25 @@ Material:
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
-    m_TexEnvs: []
+    m_TexEnvs:
+    - _MainTexAbove:
+        m_Texture: {fileID: 2800000, guid: 1a62a69cd8687a947aede1ecea9ab9b5, type: 3}
+        m_Scale: {x: 4, y: 4}
+        m_Offset: {x: 0, y: 0}
+    - _MainTexBelow:
+        m_Texture: {fileID: 2800000, guid: c086268da03471640a7af635983d71ea, type: 3}
+        m_Scale: {x: 0.25, y: 0.25}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _FoamThreshold: 0.1
     - _Glossiness: 0.5
     - _HeightThreshold: -1
     - _Metallic: 0
+    - _Smoothness: 0.405
+    - _ToonShadowThreshold: 0.5
     m_Colors:
-    - _AboveColor: {r: 0.47154653, g: 0.7509433, b: 0.28195786, a: 1}
-    - _BelowColor: {r: 0.690566, g: 0.35621333, b: 0.16026337, a: 1}
+    - _AboveColor: {r: 0.4633858, g: 0.926, b: 0.42132998, a: 1}
+    - _BelowColor: {r: 0.561, g: 0.40653798, b: 0.238986, a: 1}
+    - _FoamColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []

@@ -1,18 +1,26 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
-using TriInspector; // Assuming you're using TriInspector
+using TriInspector;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
+    [DeclareFoldoutGroup(Constants.Dev)]
     public class IslandMeshGenerator : MonoBehaviour
     {
-        public IslandMeshGeneratingSettings settings;
-        public MeshFilter meshFilter;
-        public RawImage texturePreview;
+        [InlineEditor] public IslandMeshGeneratingSettings settings;
+        [Group(Constants.Dev)] public MeshFilter meshFilter;
+        [Group(Constants.Dev)] public RawImage texturePreview;
+        [Group(Constants.Dev)] public VerletParticleGenerator particleGenerator;
+        [Group(Constants.Dev)] public ResoursePainter painter;
 
+        private float _lastUpdateTime;
+        
         private Texture2D IslandTexture => settings.islandTexture;
-        private int AreaSize => settings.areaSize;
+        private int AreaSize => (int)particleGenerator.Settings.AreaSize;
         private int PixelsPerUnit => settings.pixelsPerUnit;
         private float BorderRadius => settings.borderRadius;
         private float BlurRadius => settings.blurRadius;
@@ -24,19 +32,27 @@ namespace Flexus.ParticleMapEditor.Editor
         private bool IsAddBorders => settings.addBorders;
         private bool IsBlur => settings.blur;
 
-        [Button("Generate")]
-        public void Generate()
+        private void Start() => Generate();
+
+        private void Update()
         {
-            if (IslandTexture == null)
-            {
-                Debug.LogError("Island Texture is not assigned!");
-                return;
-            }
+            if (Mathf.Approximately(_lastUpdateTime, painter.LastPaintTime) || Time.time < painter.LastPaintTime + settings.updateDelay) return;
+            Generate();
+            _lastUpdateTime = painter.LastPaintTime;
+        }
+
+        [Button("Generate")]
+        private void Generate()
+        {
+            if (!IslandTexture) return;
 
             var texture = IslandTexture;
 
             if (IsResize) texture = ResizeTexture(texture, AreaSize * PixelsPerUnit, AreaSize * PixelsPerUnit);
-            if (IsNormalizeColor) texture = ConvertToBlackAndWhite(texture);
+            if (IsNormalizeColor)
+                texture = ConvertToBlackAndWhite(texture,
+                    particleGenerator.Settings.NonResourceParticles.Take(2).Select(p => p.Color),
+                    settings.colorTolerance);
             if (IsAddBorders) texture = AddBorders(texture, BorderRadius * PixelsPerUnit);
             if (IsBlur) texture = BlurTexture(texture, BlurRadius * PixelsPerUnit, Mathf.Pow(2, BlurPower));
 
@@ -66,29 +82,9 @@ namespace Flexus.ParticleMapEditor.Editor
 
             return resizedTexture;
         }
-
-
-        Texture2D UpscaleTexture(Texture2D texture, int factor)
-        {
-            var newWidth = texture.width * factor;
-            var newHeight = texture.height * factor;
-            var upscaledTexture = new Texture2D(newWidth, newHeight);
-
-            for (var y = 0; y < newHeight; y++)
-            {
-                for (var x = 0; x < newWidth; x++)
-                {
-                    // Nearest neighbor upscale
-                    var color = texture.GetPixel(x / factor, y / factor);
-                    upscaledTexture.SetPixel(x, y, color);
-                }
-            }
-
-            upscaledTexture.Apply();
-            return upscaledTexture;
-        }
-
-        private static Texture2D ConvertToBlackAndWhite(Texture2D texture)
+        
+        private static Texture2D ConvertToBlackAndWhite(Texture2D texture, IEnumerable<Color> blackColors,
+            float colorTolerance)
         {
             var width = texture.width;
             var height = texture.height;
@@ -100,7 +96,11 @@ namespace Flexus.ParticleMapEditor.Editor
                 for (var x = 0; x < width; x++)
                 {
                     var color = texture.GetPixel(x, y);
-                    blackAndWhiteTexture.SetPixel(x, y, color.grayscale > 0.1f ? Color.white : Color.black);
+
+                    blackAndWhiteTexture.SetPixel(x, y,
+                        blackColors.Any(c => color.CompareColorsWithTolerance(c, colorTolerance))
+                            ? Color.black
+                            : Color.white);
                 }
             }
 
@@ -193,65 +193,6 @@ namespace Flexus.ParticleMapEditor.Editor
         }
 
 
-        private static Texture2D GaussianBlur(Texture2D texture, float radius)
-        {
-            var width = texture.width;
-            var height = texture.height;
-            var blurredTexture = new Texture2D(width, height);
-
-            var kernel = GenerateGaussianKernel(radius);
-            var kernelSize = kernel.Length;
-
-            // Apply blur horizontally
-            for (var y = 0; y < height; y++)
-            {
-                for (var x = 0; x < width; x++)
-                {
-                    var blurredColor = new Color(0, 0, 0);
-                    var weightSum = 0f;
-
-                    for (var k = -kernelSize / 2; k <= kernelSize / 2; k++)
-                    {
-                        var sampleX = Mathf.Clamp(x + k, 0, width - 1);
-                        var sampleColor = texture.GetPixel(sampleX, y);
-                        var weight = kernel[k + kernelSize / 2];
-                        blurredColor += sampleColor * weight;
-                        weightSum += weight;
-                    }
-
-                    blurredTexture.SetPixel(x, y, blurredColor / weightSum);
-                }
-            }
-
-            blurredTexture.Apply();
-
-            // Apply blur vertically
-            var finalBlurredTexture = new Texture2D(width, height);
-
-            for (var y = 0; y < height; y++)
-            {
-                for (var x = 0; x < width; x++)
-                {
-                    var blurredColor = new Color(0, 0, 0);
-                    var weightSum = 0f;
-
-                    for (var k = -kernelSize / 2; k <= kernelSize / 2; k++)
-                    {
-                        var sampleY = Mathf.Clamp(y + k, 0, height - 1);
-                        var sampleColor = blurredTexture.GetPixel(x, sampleY);
-                        var weight = kernel[k + kernelSize / 2];
-                        blurredColor += sampleColor * weight;
-                        weightSum += weight;
-                    }
-
-                    finalBlurredTexture.SetPixel(x, y, blurredColor / weightSum);
-                }
-            }
-
-            finalBlurredTexture.Apply();
-            return finalBlurredTexture;
-        }
-
         private static float[] GenerateGaussianKernel(float radius)
         {
             var size = Mathf.CeilToInt(radius * 3f) * 2 + 1; // Kernel size based on radius
@@ -339,27 +280,21 @@ namespace Flexus.ParticleMapEditor.Editor
             }
 
             // Create mesh
-            var mesh = new Mesh();
-            mesh.vertices = vertices;
-            mesh.uv = uvs;
-            mesh.triangles = triangles;
+            var mesh = new Mesh
+            {
+                vertices = vertices,
+                uv = uvs,
+                triangles = triangles
+            };
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
 
             return mesh;
         }
 
-        void DisplayTexture(Texture2D texture)
+        private void DisplayTexture(Texture2D texture)
         {
-            // Check if RawImage component is assigned for preview
-            if (texturePreview != null)
-            {
-                texturePreview.texture = texture;
-            }
-            else
-            {
-                Debug.LogWarning("No RawImage assigned for preview. Please assign a UI RawImage in the Inspector.");
-            }
+            if (texturePreview) texturePreview.texture = texture;
         }
     }
 }
