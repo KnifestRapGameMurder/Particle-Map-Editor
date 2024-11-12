@@ -18,7 +18,9 @@ namespace Flexus.ParticleMapEditor.Editor
         [Group(Constants.Dev)] public ResoursePainter painter;
 
         private float _lastUpdateTime;
-        
+
+        public Mesh IslandMesh { get; private set; }
+
         private Texture2D IslandTexture => settings.islandTexture;
         private int AreaSize => (int)particleGenerator.Settings.AreaSize;
         private int PixelsPerUnit => settings.pixelsPerUnit;
@@ -36,7 +38,8 @@ namespace Flexus.ParticleMapEditor.Editor
 
         private void Update()
         {
-            if (Mathf.Approximately(_lastUpdateTime, painter.LastPaintTime) || Time.time < painter.LastPaintTime + settings.updateDelay) return;
+            if (Mathf.Approximately(_lastUpdateTime, painter.LastPaintTime) ||
+                Time.time < painter.LastPaintTime + settings.updateDelay) return;
             Generate();
             _lastUpdateTime = painter.LastPaintTime;
         }
@@ -51,7 +54,7 @@ namespace Flexus.ParticleMapEditor.Editor
             if (IsResize) texture = ResizeTexture(texture, AreaSize * PixelsPerUnit, AreaSize * PixelsPerUnit);
             if (IsNormalizeColor)
                 texture = ConvertToBlackAndWhite(texture,
-                    particleGenerator.Settings.NonResourceParticles.Take(2).Select(p => p.Color),
+                    particleGenerator.Settings.NonResourceParticles.Take(2).Select(p => p.Color).ToList(),
                     settings.colorTolerance);
             if (IsAddBorders) texture = AddBorders(texture, BorderRadius * PixelsPerUnit);
             if (IsBlur) texture = BlurTexture(texture, BlurRadius * PixelsPerUnit, Mathf.Pow(2, BlurPower));
@@ -59,8 +62,8 @@ namespace Flexus.ParticleMapEditor.Editor
             DisplayTexture(texture);
 
             var meshResolution = (int)(AreaSize * Math.Pow(2, MeshResolutionPower));
-            var islandMesh = GenerateIslandMesh(texture, AreaSize, IslandHeight, meshResolution);
-            meshFilter.mesh = islandMesh;
+            IslandMesh = GenerateIslandMesh(texture, AreaSize, IslandHeight, meshResolution);
+            meshFilter.mesh = IslandMesh;
         }
 
         private static Texture2D ResizeTexture(Texture2D texture, int width, int height)
@@ -82,8 +85,8 @@ namespace Flexus.ParticleMapEditor.Editor
 
             return resizedTexture;
         }
-        
-        private static Texture2D ConvertToBlackAndWhite(Texture2D texture, IEnumerable<Color> blackColors,
+
+        private static Texture2D ConvertToBlackAndWhite(Texture2D texture, IReadOnlyCollection<Color> blackColors,
             float colorTolerance)
         {
             var width = texture.width;

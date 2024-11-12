@@ -17,6 +17,7 @@ namespace Flexus.ParticleMapEditor
             public float[] ResourceRotations;
             public float[] ResourceScales;
             public float[] ResourceHeights;
+            public Mesh IslandMesh;
 
             public struct ResourceTypeArgs
             {

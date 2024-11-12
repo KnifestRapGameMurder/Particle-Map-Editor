@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using TriInspector;
@@ -9,6 +10,18 @@ namespace Flexus.ParticleMapEditor.Editor
     [DeclareFoldoutGroup(Constants.Dev)]
     public class ResoursePainter : MonoBehaviour
     {
+        [Button]
+        private void TestLinq()
+        {
+            var values = new[] { 1, 2, 3, 4 };
+            var selected = values.Select(n => n * 2);
+            for (int i = 0; i < 3; i++)
+            {
+                values[i] *= 10;
+                Debug.Log(string.Join(", ", selected));
+            }
+        }
+
         [Group(Constants.Dev)] public Texture2D Texture;
         [Group(Constants.Dev)] public LayerMask CanvasLayer;
         [Group(Constants.Dev)] public VerletParticleGenerator ParticleGenerator;
@@ -27,6 +40,9 @@ namespace Flexus.ParticleMapEditor.Editor
         private Vector2 _startUV;
         private Vector2 _stopUV;
         private Vector2Int? _texSize;
+        private bool _wasMouseDown;
+        private Vector2 _lastUV;
+        private Camera _camera;
 
         public float LastPaintTime { get; private set; }
 
@@ -42,6 +58,16 @@ namespace Flexus.ParticleMapEditor.Editor
 
         private Color BrushColor => ParticleGenerator.Settings.BrushColor;
         private float BrushSize => ParticleGenerator.Settings.BrushSize;
+        private float BrushInterpolateStep => BrushSize;
+
+        private Camera Camera
+        {
+            get
+            {
+                if (!_camera) _camera = Camera.main;
+                return _camera;
+            }
+        }
 
         private void Update()
         {
@@ -54,6 +80,8 @@ namespace Flexus.ParticleMapEditor.Editor
 
             if (!uvPos.HasValue)
                 return;
+
+            bool isMouseDown = false;
 
             if (Input.GetKey(_zoomingKey))
             {
@@ -93,8 +121,34 @@ namespace Flexus.ParticleMapEditor.Editor
                 BrushPreviewMaterial.color = color;
 
                 if (Input.GetMouseButton(0))
-                    ApplyBrush2D(uvPos.Value);
+                {
+                    isMouseDown = true;
+
+                    if (_wasMouseDown)
+                    {
+                        var deltaDist = (uvPos.Value - _lastUV).magnitude;
+
+                        if (deltaDist > BrushInterpolateStep)
+                        {
+                            var steps = Mathf.CeilToInt(deltaDist / BrushInterpolateStep);
+                            var points = Enumerable.Range(1, steps)
+                                .Select(t => Vector2.Lerp(_lastUV, uvPos.Value, t / (float)steps));
+                            ApplyBrush2D(points);
+                        }
+                        else
+                        {
+                            ApplyBrush2D(uvPos.Value);
+                        }
+                    }
+                    else
+                    {
+                        ApplyBrush2D(uvPos.Value);
+                    }
+                }
             }
+
+            _wasMouseDown = isMouseDown;
+            _lastUV = uvPos.Value;
         }
 
 #if UNITY_EDITOR
@@ -106,13 +160,30 @@ namespace Flexus.ParticleMapEditor.Editor
 
         private Vector2? GetMouseUVPosition()
         {
-            var mousePos = Input.mousePosition;
-            var ray = Camera.main.ScreenPointToRay(mousePos);
+            if (!Camera) return null;
 
-            if (Physics.Raycast(ray, out var hit, 10, CanvasLayer))
-                return hit.textureCoord;
-
+            var ray = Camera.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out var hit, 10, CanvasLayer)) return hit.textureCoord;
             return null;
+        }
+
+        private void ApplyBrush2D(IEnumerable<Vector2> uvPos)
+        {
+            var brushPos = uvPos.Select(uv => new Vector2Int((int)(uv.x * TexSize.x), (int)(uv.y * TexSize.y)))
+                .ToList();
+            var sqrBrushRadius = (int)(TexSize.x * BrushSize * TexSize.x * BrushSize);
+
+            for (var i = 0; i < TexSize.x; i++)
+            {
+                for (var j = 0; j < TexSize.y; j++)
+                {
+                    var pixel = new Vector2Int(i, j);
+                    if (brushPos.Any(brush => (brush - pixel).sqrMagnitude <= sqrBrushRadius))
+                        Texture.SetPixel(i, j, BrushColor);
+                }
+            }
+
+            ApplyTexture();
         }
 
         private void ApplyBrush2D(Vector2 uvPos)
@@ -169,7 +240,7 @@ namespace Flexus.ParticleMapEditor.Editor
                     // If the neighbor has not been visited yet and its color matches the target color.
                     if (visitedPixels.Contains(neighbor) ||
                         Texture.GetPixel(neighbor.x, neighbor.y) != targetColor) continue;
-                    
+
                     pixelQueue.Enqueue(neighbor);
                     visitedPixels.Add(neighbor);
                 }
