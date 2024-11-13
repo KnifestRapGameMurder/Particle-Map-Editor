@@ -50,19 +50,30 @@ namespace Flexus.ParticleMapEditor.Editor
             if (!IslandTexture) return;
 
             var texture = IslandTexture;
+            var areaSize = AreaSize;
 
             if (IsResize) texture = ResizeTexture(texture, AreaSize * PixelsPerUnit, AreaSize * PixelsPerUnit);
+            
             if (IsNormalizeColor)
                 texture = ConvertToBlackAndWhite(texture,
                     particleGenerator.Settings.NonResourceParticles.Take(2).Select(p => p.Color).ToList(),
                     settings.colorTolerance);
+
+            if (IsAddBorders || IsBlur)
+            {
+                var sideEnhance = (int)(BorderRadius + BlurRadius);
+                areaSize += 2 * sideEnhance;
+                texture = EnhanceTexture(texture, sideEnhance * PixelsPerUnit);
+            }
+
             if (IsAddBorders) texture = AddBorders(texture, BorderRadius * PixelsPerUnit);
+
             if (IsBlur) texture = BlurTexture(texture, BlurRadius * PixelsPerUnit, Mathf.Pow(2, BlurPower));
 
             DisplayTexture(texture);
 
-            var meshResolution = (int)(AreaSize * Math.Pow(2, MeshResolutionPower));
-            IslandMesh = GenerateIslandMesh(texture, AreaSize, IslandHeight, meshResolution);
+            var meshResolution = (int)(areaSize * Math.Pow(2, MeshResolutionPower));
+            IslandMesh = GenerateIslandMesh(texture, areaSize, IslandHeight, meshResolution);
             meshFilter.mesh = IslandMesh;
         }
 
@@ -85,6 +96,37 @@ namespace Flexus.ParticleMapEditor.Editor
 
             return resizedTexture;
         }
+
+        private static Texture2D EnhanceTexture(Texture2D texture, int pixels)
+        {
+            // Calculate the new texture size
+            int newWidth = texture.width + 2 * pixels;
+            int newHeight = texture.height + 2 * pixels;
+
+            // Create a new texture with the larger size
+            Texture2D enhancedTexture = new Texture2D(newWidth, newHeight, texture.format, texture.mipmapCount > 1);
+
+            // Fill the new texture with black
+            Color black = Color.black;
+            Color[] blackPixels = Enumerable.Repeat(black, newWidth * newHeight).ToArray();
+            enhancedTexture.SetPixels(blackPixels);
+
+            // Copy the original texture into the center of the new texture
+            for (int x = 0; x < texture.width; x++)
+            {
+                for (int y = 0; y < texture.height; y++)
+                {
+                    Color originalPixel = texture.GetPixel(x, y);
+                    enhancedTexture.SetPixel(x + pixels, y + pixels, originalPixel);
+                }
+            }
+
+            // Apply the changes to the new texture
+            enhancedTexture.Apply();
+
+            return enhancedTexture;
+        }
+
 
         private static Texture2D ConvertToBlackAndWhite(Texture2D texture, IReadOnlyCollection<Color> blackColors,
             float colorTolerance)
