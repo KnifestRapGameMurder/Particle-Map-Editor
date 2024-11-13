@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,6 +24,7 @@ namespace Flexus.ParticleMapEditor.Editor
         }
 
         [Group(Constants.Dev)] public Texture2D Texture;
+        [Group(Constants.Dev)] public Transform canvas;
         [Group(Constants.Dev)] public LayerMask CanvasLayer;
         [Group(Constants.Dev)] public VerletParticleGenerator ParticleGenerator;
         [Group(Constants.Dev)] public Transform BrushPreview;
@@ -31,18 +33,13 @@ namespace Flexus.ParticleMapEditor.Editor
         [Group(Constants.Dev)] public Transform ZoomStartPreview;
         [Group(Constants.Dev)] public Transform ZoomStopPreview;
 
-        [Group(Constants.Dev)] [SerializeField]
-        private KeyCode _zoomingKey = KeyCode.Q;
-
-        [Group(Constants.Dev)] [SerializeField]
-        private KeyCode _bucketPaintingKey = KeyCode.G;
-
         private Vector2 _startUV;
         private Vector2 _stopUV;
         private Vector2Int? _texSize;
         private bool _wasMouseDown;
         private Vector2 _lastUV;
         private Camera _camera;
+        private bool _isCanvasActive;
 
         public float LastPaintTime { get; private set; }
 
@@ -56,9 +53,11 @@ namespace Flexus.ParticleMapEditor.Editor
             }
         }
 
-        private Color BrushColor => ParticleGenerator.Settings.BrushColor;
-        private float BrushSize => ParticleGenerator.Settings.BrushSize;
+        private ParticleSettings Settings => ParticleGenerator.Settings;
+        private Color BrushColor => Settings.BrushColor;
+        private float BrushSize => Settings.BrushSize;
         private float BrushInterpolateStep => BrushSize;
+        private float RayMaxDistance => Settings.screenPointRayMaxDistance;
 
         private Camera Camera
         {
@@ -67,6 +66,12 @@ namespace Flexus.ParticleMapEditor.Editor
                 if (!_camera) _camera = Camera.main;
                 return _camera;
             }
+        }
+
+        private void Start()
+        {
+            _isCanvasActive = true;
+            canvas.gameObject.SetActive(_isCanvasActive);
         }
 
         private void Update()
@@ -78,12 +83,18 @@ namespace Flexus.ParticleMapEditor.Editor
             PaintBucketPreview.gameObject.SetActive(false);
             BrushPreview.gameObject.SetActive(false);
 
+            if (Input.GetKeyDown(Settings.keyCodes.painting))
+            {
+                _isCanvasActive = !_isCanvasActive;
+                canvas.gameObject.SetActive(_isCanvasActive);
+            }
+
             if (!uvPos.HasValue)
                 return;
 
             bool isMouseDown = false;
 
-            if (Input.GetKey(_zoomingKey))
+            if (Input.GetKey(Settings.keyCodes.crop))
             {
                 ZoomStartPreview.gameObject.SetActive(true);
                 ZoomStopPreview.gameObject.SetActive(true);
@@ -101,7 +112,7 @@ namespace Flexus.ParticleMapEditor.Editor
 
                 ZoomStopPreview.localPosition = uvPos.Value - 0.5f * Vector2.one;
             }
-            else if (Input.GetKey(_bucketPaintingKey))
+            else if (Input.GetKey(Settings.keyCodes.bucket))
             {
                 PaintBucketPreview.gameObject.SetActive(true);
                 PaintBucketPreview.localPosition = uvPos.Value - 0.5f * Vector2.one;
@@ -111,7 +122,7 @@ namespace Flexus.ParticleMapEditor.Editor
                     ApplyPaintBucket(uvPos.Value);
                 }
             }
-            else
+            else if(Input.GetKey(Settings.keyCodes.brush))
             {
                 BrushPreview.gameObject.SetActive(true);
                 BrushPreview.localPosition = uvPos.Value - 0.5f * Vector2.one;
@@ -163,7 +174,7 @@ namespace Flexus.ParticleMapEditor.Editor
             if (!Camera) return null;
 
             var ray = Camera.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out var hit, 10, CanvasLayer)) return hit.textureCoord;
+            if (Physics.Raycast(ray, out var hit, RayMaxDistance, CanvasLayer)) return hit.textureCoord;
             return null;
         }
 
