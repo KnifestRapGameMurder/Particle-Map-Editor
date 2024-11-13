@@ -27,8 +27,8 @@ namespace Flexus.ParticleMapEditor.Editor
         [SerializeField] private Transform _area;
         [Group(Constants.Dev)]
         [SerializeField] private Transform _rotated;
-        [Group(Constants.Dev)]
-        [SerializeField] private Transform _camera;
+        //[Group(Constants.Dev)]
+        //[SerializeField] private Transform _camera;
         [Group(Constants.Dev)]
         [SerializeField] private Transform _cameraControl;
         [Group(Constants.Dev)]
@@ -39,7 +39,7 @@ namespace Flexus.ParticleMapEditor.Editor
         private Dictionary<float, float> _radiusToSquare = new();
         private Dictionary<ParticleType, Material> _typeMaterials = new();
         private float _lastPaintTime;
-        private float _areaRotationAngle;
+        //private float _areaRotationAngle;
 
         public ParticleSettings Settings => _settings;
         public float AreaCoeffMin => _settings.AreaCoeffMin;
@@ -56,8 +56,8 @@ namespace Flexus.ParticleMapEditor.Editor
         public float CellSize => _settings.CellSize;
         public float RepaintTimeStep => _settings.RepaintTimeStep;
         public bool DrawResourses => _settings.DrawResourses;
-        public float CameraDistance => _settings.CameraDistance;
-        public float CameraRotationSpeed => _settings.CameraRotationSpeed;
+        //public float CameraDistance => _settings.CameraDistance;
+        //public float CameraRotationSpeed => _settings.CameraRotationSpeed;
         public List<Particle> Particles => _particles;
 
         private IEnumerator Start()
@@ -367,17 +367,19 @@ namespace Flexus.ParticleMapEditor.Editor
                     particle1.CurrentPosition += delta * n;
             }
         }
-
+        
         private void UpdateVisuals()
         {
-            _areaRotationAngle += CameraRotationSpeed * Time.deltaTime;
             _area.localScale = Vector3.one * AreaSize;
-            Quaternion rotation = Quaternion.Euler(0, _areaRotationAngle, 0);
-            _rotated.localRotation = rotation;
-            _camera.localPosition = new Vector3(AreaSize * -0.4f, AreaSize, 0);
-            _cameraControl.localScale = Vector3.one * CameraDistance;
+            
+            //_areaRotationAngle += CameraRotationSpeed * Time.deltaTime;
+            //Quaternion rotation = Quaternion.Euler(0, _areaRotationAngle, 0);
+            //_rotated.localRotation = rotation;
+            //_camera.localPosition = new Vector3(AreaSize * -0.4f, AreaSize, 0);
+            //_cameraControl.localScale = Vector3.one * CameraDistance;
 
-            Particle.VisualUpdateArgs args = new() { AreaSize = 1, DrawRes = DrawResourses, Rotation = rotation };
+            // Particle.VisualUpdateArgs args = new() { AreaSize = 1, DrawRes = DrawResourses, Rotation = rotation };
+            Particle.VisualUpdateArgs args = new() { AreaSize = 1, DrawRes = DrawResourses, Rotation = Quaternion.identity };
 
             //for (int i = 0; i < _particles.Count; i++)
             //{

@@ -6,6 +6,7 @@ using System;
 using JetBrains.Annotations;
 using UnityEngine.UI;
 using UnityEditor;
+using UnityEngine.Internal;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
@@ -81,12 +82,12 @@ namespace Flexus.ParticleMapEditor.Editor
         [Group(Constants.VisualizationControls), GUIColor("$" + nameof(_visualizationControlsGroupColor))]
         public bool DrawResourses;
 
-        [Group(Constants.VisualizationControls), Range(0.1f, 2f),
-         GUIColor("$" + nameof(_visualizationControlsGroupColor))]
-        public float CameraDistance;
-
-        [Group(Constants.VisualizationControls), Range(0, 45), GUIColor("$" + nameof(_visualizationControlsGroupColor))]
-        public float CameraRotationSpeed;
+        // [Group(Constants.VisualizationControls), Range(0.1f, 2f),
+        //  GUIColor("$" + nameof(_visualizationControlsGroupColor))]
+        // public float CameraDistance;
+        //
+        // [Group(Constants.VisualizationControls), Range(0, 45), GUIColor("$" + nameof(_visualizationControlsGroupColor))]
+        // public float CameraRotationSpeed;
 
         [Group(Constants.PaintingControls), Range(0f, 0.5f), GUIColor("$" + nameof(_paintingControlsGroupColor))]
         public float BrushSize = 0.1f;
@@ -99,7 +100,7 @@ namespace Flexus.ParticleMapEditor.Editor
 
         [Group(Constants.Dev)] public int InitialCount;
         [Group(Constants.Dev)] public int SubSteps = 1;
-        [Group(Constants.Dev)] public float brushInterpolateStep = 0.1f;
+        [Group(Constants.Dev)] public float screenPointRayMaxDistance = 1000f;
         [Group(Constants.Dev)] public int SpawnPerFrame = 10;
         [Group(Constants.Dev)] public Texture2D ParticleColors;
         [Group(Constants.Dev)] public Mesh Mesh;
@@ -108,7 +109,17 @@ namespace Flexus.ParticleMapEditor.Editor
         [Group(Constants.Dev)] public float ColorCompareTolerance;
         [Group(Constants.Dev)] public Material VoidMaterial;
         [Group(Constants.Dev)] public Material ResMaterialSource;
+        [Group(Constants.Dev)] public KeyCodes keyCodes;
 
+        [Serializable]
+        public struct KeyCodes
+        {
+            public KeyCode brush ;
+            public KeyCode bucket;
+            public KeyCode crop;
+            public KeyCode painting;
+        }
+        
         [Group(Constants.Dev)] [SerializeField]
         private List<NonResourceParticleArgs> _nonResourceParticles = new()
         {
