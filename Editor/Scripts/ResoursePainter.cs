@@ -76,6 +76,8 @@ namespace Flexus.ParticleMapEditor.Editor
 
         private void Update()
         {
+            canvas.localScale = Vector3.one * Settings.AreaSize;
+            
             var uvPos = GetMouseUVPosition();
 
             ZoomStartPreview.gameObject.SetActive(false);
@@ -154,6 +156,27 @@ namespace Flexus.ParticleMapEditor.Editor
                     else
                     {
                         ApplyBrush2D(uvPos.Value);
+                    }
+                }
+            }
+            else if (Input.GetKey(Settings.keyCodes.addParticle))
+            {
+                var position = (uvPos.Value - new Vector2(0.5f, 0.5f)) * Settings.AreaSize;
+                if (Input.GetMouseButtonDown(0))
+                {
+                    ParticleGenerator.AddParticle(position, true);
+                }
+                else if (Input.GetMouseButtonDown(1))
+                {
+                    for (var index = ParticleGenerator.Particles.Count - 1; index >= 0; index--)
+                    {
+                        var particle = ParticleGenerator.Particles[index];
+                        
+                        if ((particle.CurrentPosition - position).sqrMagnitude >
+                            particle.ParticleRadius * particle.ParticleRadius) continue;
+
+                        ParticleGenerator.Particles.Remove(particle);
+                        break;
                     }
                 }
             }

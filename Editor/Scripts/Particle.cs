@@ -10,10 +10,16 @@ namespace Flexus.ParticleMapEditor.Editor
         public Vector2 CurrentPosition;
         public Vector2 PreviousPosition;
         public Vector2 Acceleration;
+        /// <summary>
+        /// From res collider radius
+        /// </summary>
         public float BaseRadius = 0.5f;
         public Material Material;
         public Mesh Mesh;
 
+        /// <summary>
+        /// Random.value
+        /// </summary>
         public float RandomRadius;
         public ParticleType Type;
         public Vector2 RandomDirection;
@@ -23,7 +29,14 @@ namespace Flexus.ParticleMapEditor.Editor
         public float Offset => Type != null ? Type.Offset : 0f;
         public Vector2 RandomRadiusRange => Type.RadiusRandomization;
         public float RandRadiusCoeff => RandomRadius.Remap(0, 1, RandomRadiusRange.x, RandomRadiusRange.y);
+        /// <summary>
+        /// collider radius with particle radius randomization
+        /// </summary>
         public float ResourceRadius => Type == null ? BaseRadius : BaseRadius * RandRadiusCoeff;
+        /// <summary>
+        /// collider radius with particle radius randomization + offset
+        /// final radius of particle!
+        /// </summary>
         public float ParticleRadius => ResourceRadius + Offset;
         public float RandomAmount => Type.RandomPosition;
         public float RandomRotationCoeff => Type.RandomRotation;

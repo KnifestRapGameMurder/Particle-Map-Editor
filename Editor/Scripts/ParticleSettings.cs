@@ -21,7 +21,7 @@ namespace Flexus.ParticleMapEditor.Editor
         [SerializeField]
         private ParticleTypes _types;
 
-        [Group(Constants.ParticleControls), GUIColor("$" + nameof(_particleControlsGroupColor))]
+        [Group(Constants.ParticleControls), GUIColor("$" + nameof(_particleControlsGroupColor)), Min(1)]
         public float AreaSize = 50;
 
         [Group(Constants.ParticleControls), GUIColor("$" + nameof(_particleControlsGroupColor)), MinMaxSlider(0, 1)]
@@ -118,6 +118,7 @@ namespace Flexus.ParticleMapEditor.Editor
             public KeyCode bucket;
             public KeyCode crop;
             public KeyCode painting;
+            public KeyCode addParticle;
         }
         
         [Group(Constants.Dev)] [SerializeField]

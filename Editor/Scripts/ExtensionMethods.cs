@@ -4,6 +4,11 @@ namespace Flexus.ParticleMapEditor.Editor
 {
     public static class ExtensionMethods
     {
+        public static Vector3 ToVector3(this Color color)
+        {
+            return new Vector3(color.r, color.g, color.b);
+        }
+        
         public static Vector2 Remap(this Vector2 value, Vector2 fromMin, Vector2 fromMax, Vector2 toMin, Vector2 toMax)
         {
             float remappedX = Remap(value.x, fromMin.x, fromMax.x, toMin.x, toMax.x);
