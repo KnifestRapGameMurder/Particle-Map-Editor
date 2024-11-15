@@ -79,6 +79,10 @@ namespace Flexus.ParticleMapEditor.Editor
 
         #endregion
 
+        [Group(Constants.ParticleControls), GUIColor("$" + nameof(_particleControlsGroupColor)), InlineEditor]
+        [SerializeField]
+        public LevelObjectsConfig levelObjects;
+        
         [Group(Constants.VisualizationControls), GUIColor("$" + nameof(_visualizationControlsGroupColor))]
         public bool DrawResourses;
 
@@ -96,6 +100,8 @@ namespace Flexus.ParticleMapEditor.Editor
         [SerializeField]
         private string _type;
 
+        
+        
         #region Dev
 
         [Group(Constants.Dev)] public int InitialCount;

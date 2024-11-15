@@ -5,12 +5,17 @@ using System;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
+    public interface IParticleType
+    {
+        string Id { get; }
+    }
+    
     [DeclareHorizontalGroup("ResourceConfig", Sizes = new[] { 200f, 50f })]
     [DeclareFoldoutGroup("Particle")]
     [DeclareBoxGroup("Particle/Random", Title = "Randomization")]
     [DeclareFoldoutGroup("Resource")]
     [System.Serializable]
-    public class ParticleType
+    public class ParticleType:IParticleType
     {
         [HideInInspector]
         [SerializeField] private string _guid;

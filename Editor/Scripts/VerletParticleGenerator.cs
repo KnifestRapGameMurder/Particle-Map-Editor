@@ -2,6 +2,7 @@
 using System.Collections;
 using UnityEngine;
 using System.Linq;
+using NUnit.Framework;
 using TriInspector;
 
 namespace Flexus.ParticleMapEditor.Editor
@@ -30,7 +31,8 @@ namespace Flexus.ParticleMapEditor.Editor
         private readonly Dictionary<float, float> _radiusToSquare = new();
         private readonly Dictionary<ParticleType, Material> _typeMaterials = new();
         private readonly Dictionary<string, bool> _isResLocked = new();
-
+        private readonly List<LevelObject> _levelObjects = new();
+        
         public List<Particle> Particles { get; } = new();
 
         public ParticleSettings Settings => _settings;
@@ -59,10 +61,21 @@ namespace Flexus.ParticleMapEditor.Editor
                 _typeMaterials[type] = new Material(_settings.ResMaterialSource) { color = type.Color };
             }
 
+            foreach (var config in _settings.levelObjects.levelObjects)
+            {
+                var levelObject = new LevelObject()
+                {
+                    config = config,
+                    instance = Instantiate(config.prefab, transform),
+                };
+                _levelObjects.Add(levelObject);
+                _isResLocked[config.Id] = true;
+                yield return null;
+            }
+
             for (var i = 0; i < Count;)
             {
                 for (var j = 0; j < SpawnPerFrame && i < Count; j++, i++) AddParticle();
-
                 yield return null;
             }
         }
@@ -133,8 +146,9 @@ namespace Flexus.ParticleMapEditor.Editor
         }
 
 
-        private bool IsResLocked(ParticleType type)            => type != null && _isResLocked.ContainsKey(type.Id) && _isResLocked[type.Id];
-        
+        private bool IsResLocked(IParticleType type) =>
+            type != null && _isResLocked.ContainsKey(type.Id) && _isResLocked[type.Id];
+
         public void PaintParticles()
         {
             float totalArea = 0;
@@ -193,14 +207,14 @@ namespace Flexus.ParticleMapEditor.Editor
             foreach (var args in _settings.NonResourceParticles)
             {
                 if (!color.CompareColorsWithTolerance(args.Color, _settings.ColorCompareTolerance)) continue;
-                
+
                 particle.BaseRadius = args.Radius;
                 isNonResource = true;
                 break;
             }
 
             if (isNonResource) return;
-            
+
             var type = Types.OrderBy(t => (t.Color - color).ToVector3().sqrMagnitude).First();
 
             if (!ignoreResLock && IsResLocked(type)) return;
@@ -254,12 +268,19 @@ namespace Flexus.ParticleMapEditor.Editor
             foreach (var cell in _grid.Keys)
             {
                 var cellParticles = _grid[cell];
-                foreach (var neighbor in GetNeighboringCells(cell))
-                    if (_grid.TryGetValue(neighbor, out var neighborParticles))
+                foreach (var neighborCell in GetNeighboringCells(cell))
+                    if (_grid.TryGetValue(neighborCell, out var neighborParticles))
                         CheckCollisionsBetweenCells(cellParticles, neighborParticles);
             }
+
+            foreach (var particle in Particles)
+            foreach (var levelObject in _levelObjects)
+                ResolveCollision(particle, levelObject);
         }
 
+        /// <summary>
+        /// returns all cels around including this cell
+        /// </summary>
         private static List<Vector2Int> GetNeighboringCells(Vector2Int cell)
         {
             var neighbors = new List<Vector2Int>();
@@ -276,14 +297,14 @@ namespace Flexus.ParticleMapEditor.Editor
                 ResolveCollision(particle1, particle2);
         }
 
-        private void ResolveCollision(Particle particle1, Particle particle2)
+        private void ResolveCollision(IParticle particle1, IParticle particle2)
         {
             var collisionAxis = particle1.CurrentPosition - particle2.CurrentPosition;
             var dist = collisionAxis.magnitude;
-            var minDist = particle1.ParticleRadius + particle2.ParticleRadius;
+            var minDist = particle1.Radius + particle2.Radius;
 
             if (dist > minDist) return;
-            
+
             // Normalize the collision axis to get the direction of the collision
             var n = collisionAxis / dist;
             var delta = minDist - dist;

@@ -3,9 +3,30 @@ using UnityEngine;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
-
+    public interface IParticle
+    {
+        Vector2 CurrentPosition { get; set; }
+        float Radius { get; }
+        IParticleType Type { get; }
+    }
+    
     [System.Serializable]
-    public class Particle
+    public class LevelObject:IParticle
+    {
+        public LevelObjectConfig config;
+        public Transform instance;
+
+        public Vector2 CurrentPosition
+        {
+            get => new(instance.position.x, instance.position.z);
+            set => instance.position = new Vector3(value.x, 0f, value.y);
+        }
+        public float Radius => config.radius;
+        public IParticleType Type => config;
+    }
+    
+    [System.Serializable]
+    public class Particle : IParticle
     {
         public Vector2 CurrentPosition;
         public Vector2 PreviousPosition;
@@ -124,5 +145,9 @@ namespace Flexus.ParticleMapEditor.Editor
             public bool DrawRes;
             public Quaternion Rotation;
         }
+
+        public float Radius => ParticleRadius;
+        IParticleType IParticle.Type => Type;
+        Vector2 IParticle.CurrentPosition { get => CurrentPosition; set => CurrentPosition = value; }
     }
 }

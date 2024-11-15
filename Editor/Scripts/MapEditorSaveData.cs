@@ -3,6 +3,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
+using NUnit.Framework;
 using TriInspector;
 
 namespace Flexus.ParticleMapEditor.Editor
@@ -19,6 +20,7 @@ namespace Flexus.ParticleMapEditor.Editor
         public float Damp;
         public ParticleTypes TypesConfig;
         public List<ParticleSettings.ResLockArgs> ResLock;
+        public List<LevelObjectArgs> levelObjects;
 
         public void SetTexture(Dictionary<Vector2Int, Color> texture)
         {
@@ -34,6 +36,13 @@ namespace Flexus.ParticleMapEditor.Editor
         public struct ParticleArgs
         {
             public Vector2 Position;
+        }
+        
+        [Serializable]
+        public struct LevelObjectArgs
+        {
+            public string name;
+            public Vector2 position;
         }
 
         [Serializable]
