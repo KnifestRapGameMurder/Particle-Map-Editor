@@ -105,7 +105,7 @@ namespace Flexus.ParticleMapEditor.Editor
             }
         }
 
-        public void UpdateVisual(VisualUpdateArgs args)
+        public ParticleRenderArgs UpdateVisual(VisualUpdateArgs args)
         {
             bool randomize = args.DrawRes && Type != null;
             var scale = Vector3.one / args.AreaSize;
@@ -121,14 +121,15 @@ namespace Flexus.ParticleMapEditor.Editor
             if(randomize)
                 rotation = Quaternion.Euler(0, RandomRotationCoeff * RandomRotation * 360f, 0) * rotation;
 
-            if (!args.DrawRes)
+            if (!args.DrawRes) // Draw simple circles
             {
                 scale *= ParticleRadius;
                 scale *= 2f;
                 scale.y = 0.01f;
                 var matrix = Matrix4x4.TRS(position, rotation, scale);
-                var renderParams = new RenderParams(Material);
-                Graphics.RenderMesh(renderParams, Mesh, 0, matrix);
+                //var renderParams = new RenderParams(Material);
+                //Graphics.RenderMesh(renderParams, Mesh, 0, matrix);
+                return new ParticleRenderArgs(Material, matrix);
             }
             else if(Type != null) 
             {
@@ -136,13 +137,16 @@ namespace Flexus.ParticleMapEditor.Editor
                 float randomScaleCoeff = RandomScaleValue.Remap(0, 1, RandomScaleRange.x, RandomScaleRange.y);
                 scale *= Mathf.Lerp(1f, randomScaleCoeff, RandomScaleCoeff);
                 var matrix = Matrix4x4.TRS(position, rotation, scale);
-                var renderParams = new RenderParams { shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On };
-                for (int i = 0; i < ResMaterial.Count; i++)
-                {
-                    renderParams.material = ResMaterial[Mathf.Min(i, ResMaterial.Count - 1)];
-                    Graphics.RenderMesh(renderParams, ResMesh, i, matrix);
-                }
+                // var renderParams = new RenderParams { shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On };
+                // for (int i = 0; i < ResMaterial.Count; i++)
+                // {
+                //     renderParams.material = ResMaterial[Mathf.Min(i, ResMaterial.Count - 1)];
+                //     Graphics.RenderMesh(renderParams, ResMesh, i, matrix);
+                // }
+                return new ParticleRenderArgs(Type, matrix);
             }
+
+            return default;
         }
 
         public struct VisualUpdateArgs
@@ -151,7 +155,31 @@ namespace Flexus.ParticleMapEditor.Editor
             public bool DrawRes;
             public Quaternion Rotation;
         }
+        
+        public struct ParticleRenderArgs
+        {
+            public Matrix4x4 Matrix;
+            public bool HasType;
+            public ParticleType Type;
+            public Material Material;
 
+            public ParticleRenderArgs(Material material, Matrix4x4 matrix)
+            {
+                Matrix = matrix;
+                HasType = false;
+                Type = null;
+                Material = material;
+            }
+            
+            public ParticleRenderArgs(ParticleType type, Matrix4x4 matrix)
+            {
+                Matrix = matrix;
+                HasType = true;
+                Type = type;
+                Material = null;
+            }
+        }
+        
         public float Radius => ParticleRadius;
         IParticleType IParticle.Type => Type;
         Vector2 IParticle.CurrentPosition { get => CurrentPosition; set => CurrentPosition = value; }

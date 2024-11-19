@@ -8,7 +8,8 @@
   "homepage": "https://github.com/Idegeron/Tri-Inspector-Flexus-Edition#readme",
   "dependencies": {
     "com.flexus.triinspector": "https://github.com/Idegeron/Flexus-Tri-Inspector.git",
-    "com.unity.textmeshpro": "3.0.8"
+    "com.unity.textmeshpro": "3.0.8",
+    "com.unity.mathematics": "1.2.6"
   },
   "samples": [
     {

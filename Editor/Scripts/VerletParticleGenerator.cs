@@ -2,12 +2,97 @@
 using System.Collections;
 using UnityEngine;
 using System.Linq;
-using NUnit.Framework;
 using TriInspector;
 using UnityEngine.Profiling;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Mathematics;
+using Random = UnityEngine.Random;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
+    [BurstCompile]
+    public struct ParticleData
+    {
+        public float2 CurrentPosition;
+        public float Radius;
+        public bool IsLocked;
+    }
+
+    [BurstCompile]
+    public struct GridCollisionJob : IJobParallelFor
+    {
+        [NativeDisableParallelForRestriction] public NativeArray<ParticleData> Particles;
+        [Unity.Collections.ReadOnly] public NativeParallelMultiHashMap<int2, int> Grid;
+        [Unity.Collections.ReadOnly] public float CellSize;
+
+        public void Execute(int index)
+        {
+            var particle1 = Particles[index];
+            int2 gridCell = GetGridCell(particle1.CurrentPosition, CellSize);
+
+            // Iterate over the current cell and neighboring cells
+            for (int x = -1; x <= 1; x++)
+            {
+                for (int y = -1; y <= 1; y++)
+                {
+                    int2 neighborCell = new int2(gridCell.x + x, gridCell.y + y);
+
+                    if (Grid.TryGetFirstValue(neighborCell, out int neighborIndex, out var iterator))
+                    {
+                        do
+                        {
+                            if (neighborIndex == index) continue; // Skip self-collision
+
+                            var particle2 = Particles[neighborIndex];
+
+                            // Early exit if both particles are locked
+                            if (particle1.IsLocked && particle2.IsLocked)
+                                continue;
+
+                            // Collision detection and resolution
+                            float2 collisionAxis = particle1.CurrentPosition - particle2.CurrentPosition;
+                            float sqrDist = math.lengthsq(collisionAxis);
+                            float minDist = particle1.Radius + particle2.Radius;
+                            float sqrMinDist = minDist * minDist;
+
+                            if (sqrDist <= sqrMinDist)
+                            {
+                                float dist = math.sqrt(sqrDist);
+                                float2 n = collisionAxis / dist;
+                                float delta = minDist - dist;
+
+                                if (particle1.IsLocked == particle2.IsLocked)
+                                {
+                                    particle1.CurrentPosition += 0.5f * delta * n;
+                                    particle2.CurrentPosition -= 0.5f * delta * n;
+                                }
+                                else if (particle1.IsLocked)
+                                {
+                                    particle2.CurrentPosition -= delta * n;
+                                }
+                                else
+                                {
+                                    particle1.CurrentPosition += delta * n;
+                                }
+
+                                // Update particle states
+                                Particles[index] = particle1;
+                                Particles[neighborIndex] = particle2;
+                            }
+                        } while (Grid.TryGetNextValue(out neighborIndex, ref iterator));
+                    }
+                }
+            }
+        }
+
+        private static int2 GetGridCell(float2 position, float cellSize)
+        {
+            return new int2((int)math.floor(position.x / cellSize), (int)math.floor(position.y / cellSize));
+        }
+    }
+
     [DeclareBoxGroup("Add-Remove")]
     [DeclareFoldoutGroup(Constants.Dev)]
     public class VerletParticleGenerator : MonoBehaviour
@@ -33,7 +118,7 @@ namespace Flexus.ParticleMapEditor.Editor
         private readonly Dictionary<ParticleType, Material> _typeMaterials = new();
         private readonly Dictionary<string, bool> _isResLocked = new();
 
-        [field: ShowInInspector] public List<Particle> Particles { get; } = new();
+        public List<Particle> Particles { get; } = new();
         public List<LevelObject> LevelObjects { get; } = new();
 
         public ParticleSettings Settings => _settings;
@@ -47,7 +132,7 @@ namespace Flexus.ParticleMapEditor.Editor
         private int SubSteps => _settings.SubSteps;
         private int SpawnPerFrame => _settings.SpawnPerFrame;
         private Texture2D ParticleColors => _settings.ParticleColors;
-        private Mesh Mesh => _settings.Mesh;
+        private Mesh DefaultMesh => _settings.Mesh;
         private float CellSize => _settings.CellSize;
         private float RepaintTimeStep => _settings.RepaintTimeStep;
         private bool DrawResources => _settings.drawResources;
@@ -56,10 +141,12 @@ namespace Flexus.ParticleMapEditor.Editor
         {
             Settings.UpdateResLock();
 
+            _settings.VoidMaterial.enableInstancing = true;
             foreach (var type in Types)
             {
                 _radiusToSquare[type.Radius] = Mathf.PI * type.Radius * type.Radius;
-                _typeMaterials[type] = new Material(_settings.ResMaterialSource) { color = type.Color };
+                _typeMaterials[type] = new Material(_settings.ResMaterialSource)
+                    { color = type.Color, enableInstancing = true };
             }
 
             foreach (var config in _settings.levelObjects.levelObjects)
@@ -72,7 +159,7 @@ namespace Flexus.ParticleMapEditor.Editor
                 LevelObjects.Add(levelObject);
                 _isResLocked[config.Id] = true;
             }
-            
+
             yield return null;
 
             for (var i = 0; i < Count;)
@@ -80,7 +167,7 @@ namespace Flexus.ParticleMapEditor.Editor
                 for (var j = 0; j < SpawnPerFrame && i < Count; j++, i++) AddParticle();
                 yield return null;
             }
-            
+
             Debug.Log("Particles added");
         }
 
@@ -104,7 +191,7 @@ namespace Flexus.ParticleMapEditor.Editor
                     KeepParticlesInsideSquare();
                     Profiler.EndSample();
                     Profiler.BeginSample("HandleCollisions");
-                    HandleCollisions();
+                    HandleCollisionsWithGridJobs();
                     Profiler.EndSample();
                     Profiler.BeginSample("UpdatePosition");
                     UpdatePosition(subDeltaTime);
@@ -116,7 +203,7 @@ namespace Flexus.ParticleMapEditor.Editor
             UpdateVisuals();
             Profiler.EndSample();
         }
-        
+
         private void OnDrawGizmos()
         {
             Gizmos.color = new Color(1f, 1f, 1f, 0.1f);
@@ -170,7 +257,7 @@ namespace Flexus.ParticleMapEditor.Editor
             {
                 CurrentPosition = position,
                 PreviousPosition = position,
-                Mesh = Mesh,
+                Mesh = DefaultMesh,
                 RandomDirection = Random.insideUnitCircle,
                 RandomRotation = Random.value,
                 RandomScaleValue = Random.value,
@@ -287,6 +374,7 @@ namespace Flexus.ParticleMapEditor.Editor
                     cellParticles = new List<Particle>();
                     _grid[cell] = cellParticles;
                 }
+
                 cellParticles.Add(particle);
             }
         }
@@ -312,28 +400,88 @@ namespace Flexus.ParticleMapEditor.Editor
                 particle.KeepInsideSquare(minBounds, maxBounds);
         }
 
+        private void HandleCollisionsWithGridJobs()
+        {
+            // Convert particles to NativeArray
+            NativeArray<ParticleData> particleArray = new NativeArray<ParticleData>(Particles.Count, Allocator.TempJob);
+            for (int i = 0; i < Particles.Count; i++)
+            {
+                var particle = Particles[i];
+                particleArray[i] = new ParticleData
+                {
+                    CurrentPosition = particle.CurrentPosition,
+                    Radius = particle.Radius,
+                    IsLocked = IsResLocked(particle.Type)
+                };
+            }
+
+            // Populate the grid
+            var grid = PopulateGrid(particleArray, CellSize);
+
+            // Schedule the collision job
+            var job = new GridCollisionJob
+            {
+                Particles = particleArray,
+                Grid = grid,
+                CellSize = CellSize
+            };
+
+            JobHandle handle = job.Schedule(particleArray.Length, 64); // Batch size 64
+            handle.Complete();
+
+            // Copy results back to original particles
+            for (int i = 0; i < Particles.Count; i++)
+            {
+                var updatedParticle = particleArray[i];
+                Particles[i].CurrentPosition = updatedParticle.CurrentPosition;
+            }
+
+            // Dispose of NativeArrays and Grid
+            particleArray.Dispose();
+            grid.Dispose();
+        }
+        
+        private NativeParallelMultiHashMap<int2, int> PopulateGrid(NativeArray<ParticleData> particles, float cellSize)
+        {
+            var grid = new NativeParallelMultiHashMap<int2, int>(particles.Length, Allocator.TempJob);
+
+            for (int i = 0; i < particles.Length; i++)
+            {
+                int2 cell = GetGridCell(particles[i].CurrentPosition, cellSize);
+                grid.Add(cell, i);
+            }
+
+            return grid;
+        }
+
+        private static int2 GetGridCell(float2 position, float cellSize)
+        {
+            return new int2((int)math.floor(position.x / cellSize), (int)math.floor(position.y / cellSize));
+        }
+
         private void HandleCollisions()
         {
             Profiler.BeginSample("PopulateGrid");
             PopulateGrid();
             Profiler.EndSample();
-            
+
             Profiler.BeginSample("CheckCollisionsBetweenParticles");
             foreach (var cell in _grid.Keys)
             {
-                var cellParticles = _grid[cell]; 
-                
-                if(!cellParticles.Any()) continue;
-                
+                var cellParticles = _grid[cell];
+
+                if (!cellParticles.Any()) continue;
+
                 Profiler.BeginSample("maxRadius");
                 var maxRadius = cellParticles.Max(p => p.Radius);
                 Profiler.EndSample();
-                
+
                 var searchRadius = Mathf.FloorToInt(maxRadius / CellSize) + 1;
                 foreach (var neighborCell in GetNeighboringCells(cell, searchRadius))
                     if (_grid.TryGetValue(neighborCell, out var neighborParticles))
                         CheckCollisionsBetweenCells(cellParticles, neighborParticles);
             }
+
             Profiler.EndSample();
 
             Profiler.BeginSample("CheckCollisionsWithLevelObjects");
@@ -347,9 +495,10 @@ namespace Flexus.ParticleMapEditor.Editor
                     foreach (var particle in neighborParticles) ResolveCollision(levelObject, particle);
                 }
             }
+
             Profiler.EndSample();
         }
-        
+
         /// <summary>
         /// Returns all cells around including this cell
         /// </summary>
@@ -429,15 +578,61 @@ namespace Flexus.ParticleMapEditor.Editor
             }
         }
 
+        private Dictionary<ParticleType, List<Matrix4x4>> _modelsToRender = new();
+        private Dictionary<Material, List<Matrix4x4>> _particlesToRender = new();
+
         private void UpdateVisuals()
         {
             if (_area.localScale != Vector3.one * AreaSize)
                 _area.localScale = Vector3.one * AreaSize;
-            
+
             Particle.VisualUpdateArgs args = new()
                 { AreaSize = 1, DrawRes = DrawResources, Rotation = Quaternion.identity };
-            
-            Particles.ForEach(p => p.UpdateVisual(args));
+
+            _modelsToRender.Clear();
+            _particlesToRender.Clear();
+
+            for (var index = 0; index < Particles.Count; index++)
+            {
+                var renderArgs = Particles[index].UpdateVisual(args);
+                if (!DrawResources)
+                {
+                    if (!_particlesToRender.ContainsKey(renderArgs.Material))
+                        _particlesToRender[renderArgs.Material] = new List<Matrix4x4>();
+                    _particlesToRender[renderArgs.Material].Add(renderArgs.Matrix);
+                }
+                else if (renderArgs.HasType)
+                {
+                    if (!_modelsToRender.ContainsKey(renderArgs.Type))
+                        _modelsToRender[renderArgs.Type] = new List<Matrix4x4>();
+                    _modelsToRender[renderArgs.Type].Add(renderArgs.Matrix);
+                }
+            }
+
+            if (DrawResources)
+            {
+                foreach (var type in _modelsToRender.Keys)
+                {
+                    var renderParams = new RenderParams
+                        { shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On };
+                    var resMaterial = type.ResMaterial;
+                    var instanceData = _modelsToRender[type];
+                    for (int i = 0; i < resMaterial.Count; i++)
+                    {
+                        renderParams.material = resMaterial[Mathf.Min(i, resMaterial.Count - 1)];
+                        Graphics.RenderMeshInstanced(renderParams, type.ResMesh, i, instanceData, instanceData.Count);
+                    }
+                }
+            }
+            else
+            {
+                foreach (var material in _particlesToRender.Keys)
+                {
+                    var renderParams = new RenderParams(material);
+                    var instanceData = _particlesToRender[material];
+                    Graphics.RenderMeshInstanced(renderParams, DefaultMesh, 0, instanceData, instanceData.Count);
+                }
+            }
         }
     }
 }
