@@ -69,15 +69,17 @@ namespace Flexus.ParticleMapEditor.Editor
 
         public void UpdatePosition(float deltaTime, float damp)
         {
-            Vector2 velocity = (CurrentPosition - PreviousPosition);
+            var velocity = (CurrentPosition - PreviousPosition);
             PreviousPosition = CurrentPosition;
             CurrentPosition += velocity * damp;
 
-            if (CurrentPosition.x is float.NaN || CurrentPosition.y is float.NaN)
-            {
-                CurrentPosition = Vector2.zero;
-                PreviousPosition = Vector2.zero;
-            }
+            if (CurrentPosition.x is not float.NaN && CurrentPosition.y is not float.NaN) return;
+            
+            if (PreviousPosition.x is float.NaN || PreviousPosition.y is float.NaN)
+                PreviousPosition = Random.insideUnitCircle;
+                
+            CurrentPosition = PreviousPosition;
+            //PreviousPosition = Vector2.zero;
         }
 
         public void KeepInsideSquare(Vector2 minBounds, Vector2 maxBounds)

@@ -8,6 +8,7 @@ using TriInspector;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
+    [CreateAssetMenu(menuName = "ParticleMapEditor/MapEditorConfig")]
     public class MapEditorConfig : ScriptableObject
     {
         [HideInInspector]

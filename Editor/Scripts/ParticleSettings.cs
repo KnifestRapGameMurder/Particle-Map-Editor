@@ -7,6 +7,7 @@ using JetBrains.Annotations;
 using UnityEngine.UI;
 using UnityEditor;
 using UnityEngine.Internal;
+using UnityEngine.Serialization;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
@@ -84,23 +85,14 @@ namespace Flexus.ParticleMapEditor.Editor
         public LevelObjectsConfig levelObjects;
         
         [Group(Constants.VisualizationControls), GUIColor("$" + nameof(_visualizationControlsGroupColor))]
-        public bool DrawResourses;
+        public bool drawResources = true;
 
-        // [Group(Constants.VisualizationControls), Range(0.1f, 2f),
-        //  GUIColor("$" + nameof(_visualizationControlsGroupColor))]
-        // public float CameraDistance;
-        //
-        // [Group(Constants.VisualizationControls), Range(0, 45), GUIColor("$" + nameof(_visualizationControlsGroupColor))]
-        // public float CameraRotationSpeed;
+        [Group(Constants.PaintingControls), Range(0f, 0.5f), GUIColor("$" + nameof(InspectorBrushColor))]
+        public float brushSize = 0.1f;
 
-        [Group(Constants.PaintingControls), Range(0f, 0.5f), GUIColor("$" + nameof(_paintingControlsGroupColor))]
-        public float BrushSize = 0.1f;
-
-        [Group(Constants.PaintingControls), GUIColor("$" + nameof(BrushColor)), Dropdown(nameof(_typeNames))]
+        [Group(Constants.PaintingControls), GUIColor("$" + nameof(InspectorBrushColor)), Dropdown(nameof(TypeNames))]
         [SerializeField]
-        private string _type;
-
-        
+        private string typeName;
         
         #region Dev
 
@@ -161,11 +153,11 @@ namespace Flexus.ParticleMapEditor.Editor
 
         #endregion
 
-        private List<string> _typeNames =>
-            _nonResourceParticles.Select(_ => _.Name).Concat(Types.Select(_ => _.Name)).ToList();
+        private List<string> TypeNames =>
+            _nonResourceParticles.Select(p => p.Name).Concat(Types.Select(p => p.Name)).ToList();
 
-        public float AreaCoeffMin => Density.x;
-        public float AreaCoeffMax => Density.y;
+        public float MinDensity => Density.x;
+        public float MaxDensity => Density.y;
 
         public ParticleTypes TypesConfig
         {
@@ -176,14 +168,17 @@ namespace Flexus.ParticleMapEditor.Editor
         public List<ParticleType> Types => TypesConfig.Types;
         public List<NonResourceParticleArgs> NonResourceParticles => _nonResourceParticles;
 
-        public Color BrushColor
+        public Color BrushColor =>
+            _nonResourceParticles.Any(particle => particle.Name.Equals(typeName))
+                ? _nonResourceParticles.First(particle => particle.Name.Equals(typeName)).Color
+                : Types.First(type => type.Name.Equals(this.typeName)).Color;
+
+        private Color InspectorBrushColor
         {
             get
             {
-                if (_nonResourceParticles.Any(_ => _.Name.Equals(_type)))
-                    return _nonResourceParticles.First(_ => _.Name.Equals(_type)).Color;
-
-                return Types.First(_ => _.Name.Equals(_type)).Color;
+                var color = BrushColor;
+                return color.grayscale < 0.3f ? Color.white : color;
             }
         }
     }

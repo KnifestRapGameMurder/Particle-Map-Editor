@@ -4,6 +4,7 @@ using UnityEngine;
 using System.Linq;
 using NUnit.Framework;
 using TriInspector;
+using UnityEngine.Profiling;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
@@ -31,13 +32,13 @@ namespace Flexus.ParticleMapEditor.Editor
         private readonly Dictionary<float, float> _radiusToSquare = new();
         private readonly Dictionary<ParticleType, Material> _typeMaterials = new();
         private readonly Dictionary<string, bool> _isResLocked = new();
-        private readonly List<LevelObject> _levelObjects = new();
-        
-        public List<Particle> Particles { get; } = new();
+
+        [field: ShowInInspector] public List<Particle> Particles { get; } = new();
+        public List<LevelObject> LevelObjects { get; } = new();
 
         public ParticleSettings Settings => _settings;
-        private float AreaCoeffMin => _settings.AreaCoeffMin;
-        private float AreaCoeffMax => _settings.AreaCoeffMax;
+        private float MinDensity => _settings.MinDensity;
+        private float MaxDensity => _settings.MaxDensity;
         private int Count => _settings.InitialCount;
         private float Damp => _settings.Damp;
         private bool IsUpdating => _settings.Update;
@@ -49,7 +50,7 @@ namespace Flexus.ParticleMapEditor.Editor
         private Mesh Mesh => _settings.Mesh;
         private float CellSize => _settings.CellSize;
         private float RepaintTimeStep => _settings.RepaintTimeStep;
-        private bool DrawResources => _settings.DrawResourses;
+        private bool DrawResources => _settings.drawResources;
 
         private IEnumerator Start()
         {
@@ -61,23 +62,27 @@ namespace Flexus.ParticleMapEditor.Editor
                 _typeMaterials[type] = new Material(_settings.ResMaterialSource) { color = type.Color };
             }
 
-            foreach (var config in _settings.levelObjects.levelObjects)
-            {
-                var levelObject = new LevelObject()
-                {
-                    config = config,
-                    instance = Instantiate(config.prefab, transform),
-                };
-                _levelObjects.Add(levelObject);
-                _isResLocked[config.Id] = true;
-                yield return null;
-            }
+            // foreach (var config in _settings.levelObjects.levelObjects)
+            // {
+            //     var levelObject = new LevelObject()
+            //     {
+            //         config = config,
+            //         instance = Instantiate(config.prefab, transform),
+            //     };
+            //     LevelObjects.Add(levelObject);
+            //     _isResLocked[config.Id] = true;
+            // }
+            
+            yield return null;
 
+            //AddParticle();
             for (var i = 0; i < Count;)
             {
                 for (var j = 0; j < SpawnPerFrame && i < Count; j++, i++) AddParticle();
                 yield return null;
             }
+            
+            Debug.Log("Particles added");
         }
 
         private void Update()
@@ -86,7 +91,9 @@ namespace Flexus.ParticleMapEditor.Editor
             {
                 if (Time.time > _lastPaintTime + RepaintTimeStep)
                 {
+                    Profiler.BeginSample("PaintParticles");
                     PaintParticles();
+                    Profiler.EndSample();
                     _lastPaintTime = Time.time;
                 }
 
@@ -94,13 +101,46 @@ namespace Flexus.ParticleMapEditor.Editor
 
                 for (var i = 0; i < SubSteps; i++)
                 {
+                    Profiler.BeginSample("KeepParticlesInsideSquare");
                     KeepParticlesInsideSquare();
+                    Profiler.EndSample();
+                    Profiler.BeginSample("HandleCollisions");
                     HandleCollisions();
+                    Profiler.EndSample();
+                    Profiler.BeginSample("UpdatePosition");
                     UpdatePosition(subDeltaTime);
+                    Profiler.EndSample();
                 }
             }
 
+            Profiler.BeginSample("UpdateVisuals");
             UpdateVisuals();
+            Profiler.EndSample();
+        }
+        
+        private void OnDrawGizmos()
+        {
+            Gizmos.color = new Color(1f, 1f, 1f, 0.1f);
+
+            int gridSize = (int)(AreaSize / CellSize);
+            float cellSize = CellSize;
+            float height = 0.2f;
+            // Draw grid lines
+            for (int x = -gridSize; x <= gridSize; x++)
+            {
+                // Vertical lines
+                Vector3 start = new Vector3(x * cellSize, height, -gridSize * cellSize);
+                Vector3 end = new Vector3(x * cellSize, height, gridSize * cellSize);
+                Gizmos.DrawLine(start, end);
+            }
+
+            for (int z = -gridSize; z <= gridSize; z++)
+            {
+                // Horizontal lines
+                Vector3 start = new Vector3(-gridSize * cellSize, height, z * cellSize);
+                Vector3 end = new Vector3(gridSize * cellSize, height, z * cellSize);
+                Gizmos.DrawLine(start, end);
+            }
         }
 
         [Group("Add-Remove")] public int AmountToAdd;
@@ -113,12 +153,17 @@ namespace Flexus.ParticleMapEditor.Editor
         }
 
         [Group("Add-Remove"), Button]
+        // ReSharper disable once UnusedMember.Local
         private void RemoveAmount()
         {
             for (var i = 0; i < AmountToAdd; i++) RemoveParticle();
         }
 
-        private void AddParticle() => AddParticle(GetRandomPointInArea());
+        private void AddParticle()
+        {
+            AddParticle(GetRandomPointInArea());
+            //Debug.Log("AddParticle");
+        }
 
         public void AddParticle(Vector2 position, bool ignoreResLock = false)
         {
@@ -143,8 +188,8 @@ namespace Flexus.ParticleMapEditor.Editor
         private void RemoveParticle()
         {
             if (Particles.Count > 0) Particles.RemoveAt(0);
+            //Debug.Log("RemoveParticle");
         }
-
 
         private bool IsResLocked(IParticleType type) =>
             type != null && _isResLocked.ContainsKey(type.Id) && _isResLocked[type.Id];
@@ -165,8 +210,8 @@ namespace Flexus.ParticleMapEditor.Editor
             }
 
             var squareArea = AreaSize * AreaSize;
-            var minArea = squareArea * AreaCoeffMin;
-            var maxArea = squareArea * AreaCoeffMax;
+            var minArea = squareArea * MinDensity;
+            var maxArea = squareArea * MaxDensity;
             var avgParticleArea = totalArea / Particles.Count;
 
             if (totalArea < minArea)
@@ -236,15 +281,15 @@ namespace Flexus.ParticleMapEditor.Editor
             _grid.Clear();
             foreach (var particle in Particles)
             {
-                var cell = GetGridCell(particle.CurrentPosition);
+                var cell = GetGridCell(particle.CurrentPosition, CellSize);
                 if (!_grid.ContainsKey(cell)) _grid[cell] = new List<Particle>();
                 _grid[cell].Add(particle);
             }
         }
 
-        private Vector2Int GetGridCell(Vector2 position)
+        private static Vector2Int GetGridCell(Vector2 position, float cellSize)
         {
-            return new Vector2Int(Mathf.FloorToInt(position.x / CellSize), Mathf.FloorToInt(position.y / CellSize));
+            return new Vector2Int(Mathf.FloorToInt(position.x / cellSize), Mathf.FloorToInt(position.y / cellSize));
         }
 
         private void UpdatePosition(float deltaTime)
@@ -268,24 +313,33 @@ namespace Flexus.ParticleMapEditor.Editor
             foreach (var cell in _grid.Keys)
             {
                 var cellParticles = _grid[cell];
-                foreach (var neighborCell in GetNeighboringCells(cell))
+                var maxRadius = cellParticles.Max(p => p.Radius);
+                var searchRadius = Mathf.FloorToInt(maxRadius / CellSize) + 1;
+                foreach (var neighborCell in GetNeighboringCells(cell, searchRadius))
                     if (_grid.TryGetValue(neighborCell, out var neighborParticles))
                         CheckCollisionsBetweenCells(cellParticles, neighborParticles);
             }
 
-            foreach (var particle in Particles)
-            foreach (var levelObject in _levelObjects)
-                ResolveCollision(particle, levelObject);
+            foreach (var levelObject in LevelObjects)
+            {
+                var objectCell = GetGridCell(levelObject.CurrentPosition, CellSize);
+                var searchRadius = Mathf.CeilToInt(levelObject.Radius / CellSize);
+                foreach (var neighborCell in GetNeighboringCells(objectCell, searchRadius))
+                {
+                    if (!_grid.TryGetValue(neighborCell, out var neighborParticles)) continue;
+                    foreach (var particle in neighborParticles) ResolveCollision(levelObject, particle);
+                }
+            }
         }
 
         /// <summary>
-        /// returns all cels around including this cell
+        /// returns all cells around including this cell
         /// </summary>
-        private static List<Vector2Int> GetNeighboringCells(Vector2Int cell)
+        private static List<Vector2Int> GetNeighboringCells(Vector2Int cell, int radius = 1)
         {
             var neighbors = new List<Vector2Int>();
-            for (var x = -1; x <= 1; x++)
-            for (var y = -1; y <= 1; y++)
+            for (var x = -radius; x <= radius; x++)
+            for (var y = -radius; y <= radius; y++)
                 neighbors.Add(new Vector2Int(cell.x + x, cell.y + y));
             return neighbors;
         }

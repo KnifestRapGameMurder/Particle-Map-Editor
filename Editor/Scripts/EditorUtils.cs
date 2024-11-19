@@ -1,9 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using TriInspector;
 using UnityEditor;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
@@ -12,21 +14,31 @@ namespace Flexus.ParticleMapEditor.Editor
         /// <summary>
         /// For Dropdown can NOT be called directly. Use local field of function to wrap.
         /// </summary>
-        public static IEnumerable<TriDropdownItem<ScriptableObject>> GetAllResourceConfigAssets()
+        private static IEnumerable<TriDropdownItem<ScriptableObject>> GetAllConfigAssets(
+            Func<ScriptableObject, bool> filterPredicate)
         {
             var guids = AssetDatabase.FindAssets($"t:{nameof(ScriptableObject)}", null);
-            var paths = guids.Select(_ => AssetDatabase.GUIDToAssetPath(_));
-            var assets = paths.Select(_ => AssetDatabase.LoadAssetAtPath<ScriptableObject>(_)).Where(_ => _ is IResourceConfig);
+            var paths = guids.Select(AssetDatabase.GUIDToAssetPath);
+            var assets = paths.Select(AssetDatabase.LoadAssetAtPath<ScriptableObject>).Where(filterPredicate);
+            var scriptableObjects = assets as ScriptableObject[] ?? assets.ToArray();
 
-            if (assets == null || assets.Count() == 0)
+            if (!scriptableObjects.Any())
             {
                 return new TriDropdownList<ScriptableObject>
                 {
-                    {"NO CONFIGS FOUND", null }
+                    { "NO CONFIGS FOUND", null }
                 };
             }
 
-            return assets.Select(_ => new TriDropdownItem<ScriptableObject> { Text = _.name, Value = _ });
+            return scriptableObjects.Select(so => new TriDropdownItem<ScriptableObject> { Text = so.name, Value = so });
+        }
+
+        /// <summary>
+        /// For Dropdown can NOT be called directly. Use local field of function to wrap.
+        /// </summary>
+        public static IEnumerable<TriDropdownItem<ScriptableObject>> GetAllResourceConfigAssets()
+        {
+            return GetAllConfigAssets(so => so is IResourceConfig);
         }
 
         /// <summary>
@@ -34,19 +46,7 @@ namespace Flexus.ParticleMapEditor.Editor
         /// </summary>
         public static IEnumerable<TriDropdownItem<ScriptableObject>> GetAllMapConfigAssets()
         {
-            var guids = AssetDatabase.FindAssets($"t:{nameof(ScriptableObject)}", null);
-            var paths = guids.Select(_ => AssetDatabase.GUIDToAssetPath(_));
-            var assets = paths.Select(_ => AssetDatabase.LoadAssetAtPath<ScriptableObject>(_)).Where(_ => _ is IMapConfig);
-
-            if (assets == null || assets.Count() == 0)
-            {
-                return new TriDropdownList<ScriptableObject>
-                {
-                    {"NO CONFIGS FOUND", null }
-                };
-            }
-
-            return assets.Select(_ => new TriDropdownItem<ScriptableObject> { Text = _.name, Value = _ });
+            return GetAllConfigAssets(so => so is IMapConfig);
         }
 
         public static void SaveAsset(string path, string name, Object asset)
