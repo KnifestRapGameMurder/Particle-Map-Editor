@@ -62,20 +62,19 @@ namespace Flexus.ParticleMapEditor.Editor
                 _typeMaterials[type] = new Material(_settings.ResMaterialSource) { color = type.Color };
             }
 
-            // foreach (var config in _settings.levelObjects.levelObjects)
-            // {
-            //     var levelObject = new LevelObject()
-            //     {
-            //         config = config,
-            //         instance = Instantiate(config.prefab, transform),
-            //     };
-            //     LevelObjects.Add(levelObject);
-            //     _isResLocked[config.Id] = true;
-            // }
+            foreach (var config in _settings.levelObjects.levelObjects)
+            {
+                var levelObject = new LevelObject()
+                {
+                    config = config,
+                    instance = Instantiate(config.prefab, transform),
+                };
+                LevelObjects.Add(levelObject);
+                _isResLocked[config.Id] = true;
+            }
             
             yield return null;
 
-            //AddParticle();
             for (var i = 0; i < Count;)
             {
                 for (var j = 0; j < SpawnPerFrame && i < Count; j++, i++) AddParticle();
@@ -278,14 +277,20 @@ namespace Flexus.ParticleMapEditor.Editor
 
         private void PopulateGrid()
         {
-            _grid.Clear();
+            foreach (var cell in _grid.Values) cell.Clear(); // Clear cell lists only
+
             foreach (var particle in Particles)
             {
                 var cell = GetGridCell(particle.CurrentPosition, CellSize);
-                if (!_grid.ContainsKey(cell)) _grid[cell] = new List<Particle>();
-                _grid[cell].Add(particle);
+                if (!_grid.TryGetValue(cell, out var cellParticles))
+                {
+                    cellParticles = new List<Particle>();
+                    _grid[cell] = cellParticles;
+                }
+                cellParticles.Add(particle);
             }
         }
+
 
         private static Vector2Int GetGridCell(Vector2 position, float cellSize)
         {
@@ -309,17 +314,29 @@ namespace Flexus.ParticleMapEditor.Editor
 
         private void HandleCollisions()
         {
+            Profiler.BeginSample("PopulateGrid");
             PopulateGrid();
+            Profiler.EndSample();
+            
+            Profiler.BeginSample("CheckCollisionsBetweenParticles");
             foreach (var cell in _grid.Keys)
             {
-                var cellParticles = _grid[cell];
+                var cellParticles = _grid[cell]; 
+                
+                if(!cellParticles.Any()) continue;
+                
+                Profiler.BeginSample("maxRadius");
                 var maxRadius = cellParticles.Max(p => p.Radius);
+                Profiler.EndSample();
+                
                 var searchRadius = Mathf.FloorToInt(maxRadius / CellSize) + 1;
                 foreach (var neighborCell in GetNeighboringCells(cell, searchRadius))
                     if (_grid.TryGetValue(neighborCell, out var neighborParticles))
                         CheckCollisionsBetweenCells(cellParticles, neighborParticles);
             }
+            Profiler.EndSample();
 
+            Profiler.BeginSample("CheckCollisionsWithLevelObjects");
             foreach (var levelObject in LevelObjects)
             {
                 var objectCell = GetGridCell(levelObject.CurrentPosition, CellSize);
@@ -330,36 +347,65 @@ namespace Flexus.ParticleMapEditor.Editor
                     foreach (var particle in neighborParticles) ResolveCollision(levelObject, particle);
                 }
             }
+            Profiler.EndSample();
         }
-
+        
         /// <summary>
-        /// returns all cells around including this cell
+        /// Returns all cells around including this cell
         /// </summary>
-        private static List<Vector2Int> GetNeighboringCells(Vector2Int cell, int radius = 1)
+        private static Vector2Int[] GetNeighboringCells(Vector2Int cell, int radius = 1)
         {
-            var neighbors = new List<Vector2Int>();
-            for (var x = -radius; x <= radius; x++)
-            for (var y = -radius; y <= radius; y++)
-                neighbors.Add(new Vector2Int(cell.x + x, cell.y + y));
+            Profiler.BeginSample("GetNeighboringCellsArray");
+
+            int neighborCount = (radius * 2 + 1) * (radius * 2 + 1);
+            var neighbors = new Vector2Int[neighborCount];
+            int index = 0;
+
+            for (int x = -radius; x <= radius; x++)
+            {
+                for (int y = -radius; y <= radius; y++)
+                {
+                    neighbors[index++] = new Vector2Int(cell.x + x, cell.y + y);
+                }
+            }
+
+            Profiler.EndSample();
             return neighbors;
         }
 
+
         private void CheckCollisionsBetweenCells(List<Particle> cell1Particles, List<Particle> cell2Particles)
         {
-            foreach (var particle1 in cell1Particles)
-            foreach (var particle2 in cell2Particles.Where(particle2 => particle1 != particle2))
-                ResolveCollision(particle1, particle2);
+            Profiler.BeginSample("CheckCollisionsBetweenCells");
+            for (var i = 0; i < cell1Particles.Count; i++)
+            {
+                var particle1 = cell1Particles[i];
+                for (var index = 0; index < cell2Particles.Count; index++)
+                {
+                    var particle2 = cell2Particles[index];
+                    if (particle1 == particle2) continue;
+                    Profiler.BeginSample("ResolveCollision");
+                    ResolveCollision(particle1, particle2);
+                    Profiler.EndSample();
+                }
+            }
+
+            Profiler.EndSample();
         }
 
         private void ResolveCollision(IParticle particle1, IParticle particle2)
         {
+            // Compute the collision axis and squared distance to avoid costly sqrt
             var collisionAxis = particle1.CurrentPosition - particle2.CurrentPosition;
-            var dist = collisionAxis.magnitude;
+            var sqrDist = collisionAxis.sqrMagnitude;
             var minDist = particle1.Radius + particle2.Radius;
+            var sqrMinDist = minDist * minDist;
 
-            if (dist > minDist) return;
+            // Early exit if particles are not colliding
+            if (sqrDist > sqrMinDist) return;
 
             // Normalize the collision axis to get the direction of the collision
+            var dist = Mathf.Sqrt(sqrDist); // Compute only when needed
             var n = collisionAxis / dist;
             var delta = minDist - dist;
 
@@ -369,18 +415,28 @@ namespace Flexus.ParticleMapEditor.Editor
             // Adjust positions to resolve overlap
             if (isLocked1 == isLocked2)
             {
-                particle1.CurrentPosition += 0.5f * delta * n;
-                particle2.CurrentPosition -= 0.5f * delta * n;
+                var halfDelta = 0.5f * delta; // Avoid redundant multiplication
+                particle1.CurrentPosition += halfDelta * n;
+                particle2.CurrentPosition -= halfDelta * n;
             }
-            else if (isLocked1) particle2.CurrentPosition -= delta * n;
-            else particle1.CurrentPosition += delta * n;
+            else if (isLocked1)
+            {
+                particle2.CurrentPosition -= delta * n;
+            }
+            else
+            {
+                particle1.CurrentPosition += delta * n;
+            }
         }
 
         private void UpdateVisuals()
         {
-            _area.localScale = Vector3.one * AreaSize;
+            if (_area.localScale != Vector3.one * AreaSize)
+                _area.localScale = Vector3.one * AreaSize;
+            
             Particle.VisualUpdateArgs args = new()
                 { AreaSize = 1, DrawRes = DrawResources, Rotation = Quaternion.identity };
+            
             Particles.ForEach(p => p.UpdateVisual(args));
         }
     }

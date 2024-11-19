@@ -108,15 +108,15 @@ namespace Flexus.ParticleMapEditor.Editor
         public void UpdateVisual(VisualUpdateArgs args)
         {
             bool randomize = args.DrawRes && Type != null;
-            Vector3 scale = Vector3.one / args.AreaSize;
-            Vector2 position2D = CurrentPosition;
+            var scale = Vector3.one / args.AreaSize;
+            var position2D = CurrentPosition;
 
             if(randomize)
                 position2D += RandomAmount * ParticleRadius * RandomDirection;
 
-            Vector3 position = new Vector3(position2D.x, 0, position2D.y) / args.AreaSize;
+            var position = new Vector3(position2D.x, 0, position2D.y) / args.AreaSize;
             position = args.Rotation * position;
-            Quaternion rotation = args.Rotation;
+            var rotation = args.Rotation;
 
             if(randomize)
                 rotation = Quaternion.Euler(0, RandomRotationCoeff * RandomRotation * 360f, 0) * rotation;
@@ -126,18 +126,22 @@ namespace Flexus.ParticleMapEditor.Editor
                 scale *= ParticleRadius;
                 scale *= 2f;
                 scale.y = 0.01f;
-                Matrix4x4 matrix = Matrix4x4.TRS(position, rotation, scale);
-                Graphics.DrawMesh(Mesh, matrix, Material, 0, null, 0, null, false, false);
+                var matrix = Matrix4x4.TRS(position, rotation, scale);
+                var renderParams = new RenderParams(Material);
+                Graphics.RenderMesh(renderParams, Mesh, 0, matrix);
             }
             else if(Type != null) 
             {
                 scale *= ResScale;
                 float randomScaleCoeff = RandomScaleValue.Remap(0, 1, RandomScaleRange.x, RandomScaleRange.y);
                 scale *= Mathf.Lerp(1f, randomScaleCoeff, RandomScaleCoeff);
-                Matrix4x4 matrix = Matrix4x4.TRS(position, rotation, scale);
-
+                var matrix = Matrix4x4.TRS(position, rotation, scale);
+                var renderParams = new RenderParams { shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On };
                 for (int i = 0; i < ResMaterial.Count; i++)
-                    Graphics.DrawMesh(ResMesh, matrix, ResMaterial[Mathf.Min(i, ResMaterial.Count - 1)], 0, null, i);
+                {
+                    renderParams.material = ResMaterial[Mathf.Min(i, ResMaterial.Count - 1)];
+                    Graphics.RenderMesh(renderParams, ResMesh, i, matrix);
+                }
             }
         }
 
