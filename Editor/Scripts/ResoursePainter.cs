@@ -55,7 +55,7 @@ namespace Flexus.ParticleMapEditor.Editor
 
         private ParticleSettings Settings => ParticleGenerator.Settings;
         private Color BrushColor => Settings.BrushColor;
-        private float BrushSize => Settings.BrushSize;
+        private float BrushSize => Settings.brushSize;
         private float BrushInterpolateStep => BrushSize;
         private float RayMaxDistance => Settings.screenPointRayMaxDistance;
 

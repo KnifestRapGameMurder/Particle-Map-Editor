@@ -3,9 +3,30 @@ using UnityEngine;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
-
+    public interface IParticle
+    {
+        Vector2 CurrentPosition { get; set; }
+        float Radius { get; }
+        IParticleType Type { get; }
+    }
+    
     [System.Serializable]
-    public class Particle
+    public class LevelObject:IParticle
+    {
+        public LevelObjectConfig config;
+        public Transform instance;
+
+        public Vector2 CurrentPosition
+        {
+            get => new(instance.position.x, instance.position.z);
+            set => instance.position = new Vector3(value.x, 0f, value.y);
+        }
+        public float Radius => config.radius;
+        public IParticleType Type => config;
+    }
+    
+    [System.Serializable]
+    public class Particle : IParticle
     {
         public Vector2 CurrentPosition;
         public Vector2 PreviousPosition;
@@ -48,15 +69,17 @@ namespace Flexus.ParticleMapEditor.Editor
 
         public void UpdatePosition(float deltaTime, float damp)
         {
-            Vector2 velocity = (CurrentPosition - PreviousPosition);
+            var velocity = (CurrentPosition - PreviousPosition);
             PreviousPosition = CurrentPosition;
             CurrentPosition += velocity * damp;
 
-            if (CurrentPosition.x is float.NaN || CurrentPosition.y is float.NaN)
-            {
-                CurrentPosition = Vector2.zero;
-                PreviousPosition = Vector2.zero;
-            }
+            if (CurrentPosition.x is not float.NaN && CurrentPosition.y is not float.NaN) return;
+            
+            if (PreviousPosition.x is float.NaN || PreviousPosition.y is float.NaN)
+                PreviousPosition = Random.insideUnitCircle;
+                
+            CurrentPosition = PreviousPosition;
+            //PreviousPosition = Vector2.zero;
         }
 
         public void KeepInsideSquare(Vector2 minBounds, Vector2 maxBounds)
@@ -82,40 +105,48 @@ namespace Flexus.ParticleMapEditor.Editor
             }
         }
 
-        public void UpdateVisual(VisualUpdateArgs args)
+        public ParticleRenderArgs UpdateVisual(VisualUpdateArgs args)
         {
             bool randomize = args.DrawRes && Type != null;
-            Vector3 scale = Vector3.one / args.AreaSize;
-            Vector2 position2D = CurrentPosition;
+            var scale = Vector3.one / args.AreaSize;
+            var position2D = CurrentPosition;
 
             if(randomize)
                 position2D += RandomAmount * ParticleRadius * RandomDirection;
 
-            Vector3 position = new Vector3(position2D.x, 0, position2D.y) / args.AreaSize;
+            var position = new Vector3(position2D.x, 0, position2D.y) / args.AreaSize;
             position = args.Rotation * position;
-            Quaternion rotation = args.Rotation;
+            var rotation = args.Rotation;
 
             if(randomize)
                 rotation = Quaternion.Euler(0, RandomRotationCoeff * RandomRotation * 360f, 0) * rotation;
 
-            if (!args.DrawRes)
+            if (!args.DrawRes) // Draw simple circles
             {
                 scale *= ParticleRadius;
                 scale *= 2f;
                 scale.y = 0.01f;
-                Matrix4x4 matrix = Matrix4x4.TRS(position, rotation, scale);
-                Graphics.DrawMesh(Mesh, matrix, Material, 0, null, 0, null, false, false);
+                var matrix = Matrix4x4.TRS(position, rotation, scale);
+                //var renderParams = new RenderParams(Material);
+                //Graphics.RenderMesh(renderParams, Mesh, 0, matrix);
+                return new ParticleRenderArgs(Material, matrix);
             }
             else if(Type != null) 
             {
                 scale *= ResScale;
                 float randomScaleCoeff = RandomScaleValue.Remap(0, 1, RandomScaleRange.x, RandomScaleRange.y);
                 scale *= Mathf.Lerp(1f, randomScaleCoeff, RandomScaleCoeff);
-                Matrix4x4 matrix = Matrix4x4.TRS(position, rotation, scale);
-
-                for (int i = 0; i < ResMaterial.Count; i++)
-                    Graphics.DrawMesh(ResMesh, matrix, ResMaterial[Mathf.Min(i, ResMaterial.Count - 1)], 0, null, i);
+                var matrix = Matrix4x4.TRS(position, rotation, scale);
+                // var renderParams = new RenderParams { shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On };
+                // for (int i = 0; i < ResMaterial.Count; i++)
+                // {
+                //     renderParams.material = ResMaterial[Mathf.Min(i, ResMaterial.Count - 1)];
+                //     Graphics.RenderMesh(renderParams, ResMesh, i, matrix);
+                // }
+                return new ParticleRenderArgs(Type, matrix);
             }
+
+            return default;
         }
 
         public struct VisualUpdateArgs
@@ -124,5 +155,33 @@ namespace Flexus.ParticleMapEditor.Editor
             public bool DrawRes;
             public Quaternion Rotation;
         }
+        
+        public struct ParticleRenderArgs
+        {
+            public Matrix4x4 Matrix;
+            public bool HasType;
+            public ParticleType Type;
+            public Material Material;
+
+            public ParticleRenderArgs(Material material, Matrix4x4 matrix)
+            {
+                Matrix = matrix;
+                HasType = false;
+                Type = null;
+                Material = material;
+            }
+            
+            public ParticleRenderArgs(ParticleType type, Matrix4x4 matrix)
+            {
+                Matrix = matrix;
+                HasType = true;
+                Type = type;
+                Material = null;
+            }
+        }
+        
+        public float Radius => ParticleRadius;
+        IParticleType IParticle.Type => Type;
+        Vector2 IParticle.CurrentPosition { get => CurrentPosition; set => CurrentPosition = value; }
     }
 }
