@@ -4,7 +4,6 @@ using UnityEngine;
 using System.Linq;
 using TriInspector;
 using UnityEngine.Profiling;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -12,87 +11,6 @@ using Random = UnityEngine.Random;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
-    [BurstCompile]
-    public struct ParticleData
-    {
-        public float2 CurrentPosition;
-        public float Radius;
-        public bool IsLocked;
-    }
-
-    [BurstCompile]
-    public struct GridCollisionJob : IJobParallelFor
-    {
-        [NativeDisableParallelForRestriction] public NativeArray<ParticleData> Particles;
-        [Unity.Collections.ReadOnly] public NativeParallelMultiHashMap<int2, int> Grid;
-        [Unity.Collections.ReadOnly] public float CellSize;
-
-        public void Execute(int index)
-        {
-            var particle1 = Particles[index];
-            int2 gridCell = GetGridCell(particle1.CurrentPosition, CellSize);
-
-            // Iterate over the current cell and neighboring cells
-            for (int x = -1; x <= 1; x++)
-            {
-                for (int y = -1; y <= 1; y++)
-                {
-                    int2 neighborCell = new int2(gridCell.x + x, gridCell.y + y);
-
-                    if (Grid.TryGetFirstValue(neighborCell, out int neighborIndex, out var iterator))
-                    {
-                        do
-                        {
-                            if (neighborIndex == index) continue; // Skip self-collision
-
-                            var particle2 = Particles[neighborIndex];
-
-                            // Early exit if both particles are locked
-                            if (particle1.IsLocked && particle2.IsLocked)
-                                continue;
-
-                            // Collision detection and resolution
-                            float2 collisionAxis = particle1.CurrentPosition - particle2.CurrentPosition;
-                            float sqrDist = math.lengthsq(collisionAxis);
-                            float minDist = particle1.Radius + particle2.Radius;
-                            float sqrMinDist = minDist * minDist;
-
-                            if (sqrDist <= sqrMinDist)
-                            {
-                                float dist = math.sqrt(sqrDist);
-                                float2 n = collisionAxis / dist;
-                                float delta = minDist - dist;
-
-                                if (particle1.IsLocked == particle2.IsLocked)
-                                {
-                                    particle1.CurrentPosition += 0.5f * delta * n;
-                                    particle2.CurrentPosition -= 0.5f * delta * n;
-                                }
-                                else if (particle1.IsLocked)
-                                {
-                                    particle2.CurrentPosition -= delta * n;
-                                }
-                                else
-                                {
-                                    particle1.CurrentPosition += delta * n;
-                                }
-
-                                // Update particle states
-                                Particles[index] = particle1;
-                                Particles[neighborIndex] = particle2;
-                            }
-                        } while (Grid.TryGetNextValue(out neighborIndex, ref iterator));
-                    }
-                }
-            }
-        }
-
-        private static int2 GetGridCell(float2 position, float cellSize)
-        {
-            return new int2((int)math.floor(position.x / cellSize), (int)math.floor(position.y / cellSize));
-        }
-    }
-
     [DeclareBoxGroup("Add-Remove")]
     [DeclareFoldoutGroup(Constants.Dev)]
     public class VerletParticleGenerator : MonoBehaviour
@@ -403,7 +321,7 @@ namespace Flexus.ParticleMapEditor.Editor
         private void HandleCollisionsWithGridJobs()
         {
             // Convert particles to NativeArray
-            NativeArray<ParticleData> particleArray = new NativeArray<ParticleData>(Particles.Count, Allocator.TempJob);
+            var particleArray = new NativeArray<ParticleData>(Particles.Count, Allocator.TempJob);
             for (int i = 0; i < Particles.Count; i++)
             {
                 var particle = Particles[i];
@@ -417,16 +335,28 @@ namespace Flexus.ParticleMapEditor.Editor
 
             // Populate the grid
             var grid = PopulateGrid(particleArray, CellSize);
+            
+            // Populate level objects
+            var levelObjectArray = new NativeArray<LevelObjectData>(LevelObjects.Count, Allocator.TempJob);
+            for (int i = 0; i < LevelObjects.Count; i++)
+            {
+                levelObjectArray[i] = new LevelObjectData
+                {
+                    Position = LevelObjects[i].CurrentPosition,
+                    Radius = LevelObjects[i].Radius
+                };
+            }
 
             // Schedule the collision job
             var job = new GridCollisionJob
             {
                 Particles = particleArray,
                 Grid = grid,
+                LevelObjects = levelObjectArray,
                 CellSize = CellSize
             };
 
-            JobHandle handle = job.Schedule(particleArray.Length, 64); // Batch size 64
+            var handle = job.Schedule(particleArray.Length, 64); // Batch size 64
             handle.Complete();
 
             // Copy results back to original particles
@@ -447,7 +377,7 @@ namespace Flexus.ParticleMapEditor.Editor
 
             for (int i = 0; i < particles.Length; i++)
             {
-                int2 cell = GetGridCell(particles[i].CurrentPosition, cellSize);
+                var cell = GetGridCell(particles[i].CurrentPosition, cellSize);
                 grid.Add(cell, i);
             }
 
