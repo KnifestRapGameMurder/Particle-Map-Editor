@@ -18,12 +18,19 @@ namespace Flexus.ParticleMapEditor
             public float[] ResourceScales;
             public float[] ResourceHeights;
             public Mesh IslandMesh;
+            public LevelObjectArgs[] LevelObjects;
 
             public struct ResourceTypeArgs
             {
                 public IResourceConfig Resource;
                 public int Capacity;
                 public int Level;
+            }
+            
+            public struct LevelObjectArgs
+            {
+                public string Name;
+                public Vector2 Position;
             }
         }
     }
