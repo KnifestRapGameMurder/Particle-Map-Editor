@@ -204,30 +204,30 @@ namespace Flexus.ParticleMapEditor.Editor
             Profiler.EndSample();
         }
 
-        private void OnDrawGizmos()
-        {
-            Gizmos.color = new Color(1f, 1f, 1f, 0.1f);
-
-            int gridSize = (int)(AreaSize / CellSize);
-            float cellSize = CellSize;
-            float height = 0.2f;
-            // Draw grid lines
-            for (int x = -gridSize; x <= gridSize; x++)
-            {
-                // Vertical lines
-                Vector3 start = new Vector3(x * cellSize, height, -gridSize * cellSize);
-                Vector3 end = new Vector3(x * cellSize, height, gridSize * cellSize);
-                Gizmos.DrawLine(start, end);
-            }
-
-            for (int z = -gridSize; z <= gridSize; z++)
-            {
-                // Horizontal lines
-                Vector3 start = new Vector3(-gridSize * cellSize, height, z * cellSize);
-                Vector3 end = new Vector3(gridSize * cellSize, height, z * cellSize);
-                Gizmos.DrawLine(start, end);
-            }
-        }
+        // private void OnDrawGizmos()
+        // {
+        //     Gizmos.color = new Color(1f, 1f, 1f, 0.1f);
+        //
+        //     int gridSize = (int)(AreaSize / CellSize);
+        //     float cellSize = CellSize;
+        //     float height = 0.2f;
+        //     // Draw grid lines
+        //     for (int x = -gridSize; x <= gridSize; x++)
+        //     {
+        //         // Vertical lines
+        //         Vector3 start = new Vector3(x * cellSize, height, -gridSize * cellSize);
+        //         Vector3 end = new Vector3(x * cellSize, height, gridSize * cellSize);
+        //         Gizmos.DrawLine(start, end);
+        //     }
+        //
+        //     for (int z = -gridSize; z <= gridSize; z++)
+        //     {
+        //         // Horizontal lines
+        //         Vector3 start = new Vector3(-gridSize * cellSize, height, z * cellSize);
+        //         Vector3 end = new Vector3(gridSize * cellSize, height, z * cellSize);
+        //         Gizmos.DrawLine(start, end);
+        //     }
+        // }
 
         [Group("Add-Remove")] public int AmountToAdd;
 

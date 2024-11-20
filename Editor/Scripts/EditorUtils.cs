@@ -18,9 +18,18 @@ namespace Flexus.ParticleMapEditor.Editor
             Func<ScriptableObject, bool> filterPredicate)
         {
             var guids = AssetDatabase.FindAssets($"t:{nameof(ScriptableObject)}", null);
-            var paths = guids.Select(AssetDatabase.GUIDToAssetPath);
-            var assets = paths.Select(AssetDatabase.LoadAssetAtPath<ScriptableObject>).Where(filterPredicate);
-            var scriptableObjects = assets as ScriptableObject[] ?? assets.ToArray();
+            var scriptableObjects = new List<ScriptableObject>();
+
+            foreach (var guid in guids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+
+                if (asset != null && filterPredicate(asset))
+                {
+                    scriptableObjects.Add(asset);
+                }
+            }
 
             if (!scriptableObjects.Any())
             {
@@ -32,6 +41,7 @@ namespace Flexus.ParticleMapEditor.Editor
 
             return scriptableObjects.Select(so => new TriDropdownItem<ScriptableObject> { Text = so.name, Value = so });
         }
+
 
         /// <summary>
         /// For Dropdown can NOT be called directly. Use local field of function to wrap.
