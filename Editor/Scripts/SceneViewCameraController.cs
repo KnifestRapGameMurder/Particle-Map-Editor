@@ -8,17 +8,19 @@ namespace Flexus.ParticleMapEditor.Editor
         public float rotationSpeed = 3.0f;
         public float panSpeed = 0.5f;
         public float zoomSpeed = 5.0f;
+        public float flySpeed = 5.0f;
 
         private Vector3 _rotationCenter; // Set a pivot point for rotating around the center
         private Vector3 _lastMousePosition;
 
         private void Update()
         {
-            if(!IsMouseInGameView()) return;
-            
+            if (!IsMouseInGameView()) return;
+
             HandleRotation();
             HandlePan();
             HandleZoom();
+            HandleFly();
             _lastMousePosition = Input.mousePosition;
         }
 
@@ -30,7 +32,7 @@ namespace Flexus.ParticleMapEditor.Editor
                 var groundPlane = new Plane(Vector3.up, Vector3.zero);
                 _rotationCenter = groundPlane.Raycast(ray, out var enter) ? ray.GetPoint(enter) : Vector3.zero;
             }
-            
+
             if (Input.GetMouseButton(1)) // Right mouse button for free rotation
             {
                 var delta = Input.mousePosition - _lastMousePosition;
@@ -61,9 +63,24 @@ namespace Flexus.ParticleMapEditor.Editor
 
         private void HandleZoom()
         {
-            //if (!IsMouseInGameView()) return;
             var scroll = Input.GetAxis("Mouse ScrollWheel");
             transform.position += transform.forward * (scroll * zoomSpeed);
+        }
+
+        private void HandleFly()
+        {
+            if (!Input.GetMouseButton(1)) return; // Fly mode is active only when holding the right mouse button
+
+            Vector3 move = Vector3.zero;
+
+            if (Input.GetKey(KeyCode.W)) move += transform.forward;  // Forward
+            if (Input.GetKey(KeyCode.S)) move -= transform.forward;  // Backward
+            if (Input.GetKey(KeyCode.A)) move -= transform.right;   // Left
+            if (Input.GetKey(KeyCode.D)) move += transform.right;   // Right
+            if (Input.GetKey(KeyCode.E)) move += transform.up;      // Up
+            if (Input.GetKey(KeyCode.Q)) move -= transform.up;      // Down
+
+            transform.position += move * (flySpeed * Time.deltaTime);
         }
 
         private static bool IsMouseInGameView()

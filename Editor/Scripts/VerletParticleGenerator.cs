@@ -191,8 +191,10 @@ namespace Flexus.ParticleMapEditor.Editor
 
         private void RemoveParticle()
         {
-            if (Particles.Count > 0) Particles.RemoveAt(0);
-            //Debug.Log("RemoveParticle");
+            if (Particles.Count == 0) return;
+
+            var randIndex = Random.Range(0, Particles.Count);
+            if (!IsResLocked(Particles[randIndex].Type)) Particles.RemoveAt(randIndex);
         }
 
         private bool IsResLocked(IParticleType type) =>

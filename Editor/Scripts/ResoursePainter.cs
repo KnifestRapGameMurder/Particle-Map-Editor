@@ -25,6 +25,7 @@ namespace Flexus.ParticleMapEditor.Editor
 
         [Group(Constants.Dev)] public Texture2D Texture;
         [Group(Constants.Dev)] public Transform canvas;
+        [Group(Constants.Dev)] public MeshRenderer canvasRenderer;
         [Group(Constants.Dev)] public LayerMask CanvasLayer;
         [Group(Constants.Dev)] public VerletParticleGenerator ParticleGenerator;
         [Group(Constants.Dev)] public Transform BrushPreview;
@@ -71,7 +72,8 @@ namespace Flexus.ParticleMapEditor.Editor
         private void Start()
         {
             _isCanvasActive = true;
-            canvas.gameObject.SetActive(_isCanvasActive);
+            //canvas.gameObject.SetActive(_isCanvasActive);
+            canvasRenderer.enabled = _isCanvasActive;
         }
 
         private void Update()
@@ -88,7 +90,7 @@ namespace Flexus.ParticleMapEditor.Editor
             if (Input.GetKeyDown(Settings.keyCodes.painting))
             {
                 _isCanvasActive = !_isCanvasActive;
-                canvas.gameObject.SetActive(_isCanvasActive);
+                canvasRenderer.enabled = _isCanvasActive;
             }
 
             if (!uvPos.HasValue)

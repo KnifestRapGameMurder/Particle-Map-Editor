@@ -371,6 +371,7 @@ MonoBehaviour:
   rotationSpeed: 5
   panSpeed: 3
   zoomSpeed: 20
+  flySpeed: 15
 --- !u!1 &3060746563068157933
 GameObject:
   m_ObjectHideFlags: 0
