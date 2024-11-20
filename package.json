@@ -2,7 +2,7 @@
   "name": "com.flexus.particle-map-editor",
   "displayName": "Flexus Particle Map Editor",
   "description": "Custom map generator for any resource mining game.",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "unity": "2020.3",
   "author": "Knifest (https://github.com/KnifestRapGameMurder)",
   "homepage": "https://github.com/Idegeron/Tri-Inspector-Flexus-Edition#readme",
