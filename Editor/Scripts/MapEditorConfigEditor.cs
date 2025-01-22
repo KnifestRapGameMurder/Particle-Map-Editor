@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿#if UNITY_EDITOR
+using UnityEngine;
 using UnityEditor;
 
 namespace Flexus.ParticleMapEditor.Editor
@@ -64,5 +65,5 @@ namespace Flexus.ParticleMapEditor.Editor
             texturePreview.Apply();
         }
     }
-
 }
+#endif
