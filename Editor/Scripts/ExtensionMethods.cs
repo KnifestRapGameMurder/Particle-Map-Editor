@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿#if UNITY_EDITOR
+using UnityEngine;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
@@ -52,3 +53,4 @@ namespace Flexus.ParticleMapEditor.Editor
         }
     }
 }
+#endif

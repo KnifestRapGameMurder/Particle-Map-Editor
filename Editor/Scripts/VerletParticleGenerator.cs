@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿#if UNITY_EDITOR
+using System.Collections.Generic;
 using System.Collections;
 using UnityEngine;
 using System.Linq;
@@ -7,6 +8,7 @@ using UnityEngine.Profiling;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+using UnityEngine.Rendering;
 using Random = UnityEngine.Random;
 
 namespace Flexus.ParticleMapEditor.Editor
@@ -546,7 +548,7 @@ namespace Flexus.ParticleMapEditor.Editor
                 foreach (var type in _modelsToRender.Keys)
                 {
                     var renderParams = new RenderParams
-                        { shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On };
+                        { shadowCastingMode = ShadowCastingMode.On };
                     var resMaterial = type.ResMaterial;
                     var instanceData = _modelsToRender[type];
                     for (int i = 0; i < resMaterial.Count; i++)
@@ -568,3 +570,4 @@ namespace Flexus.ParticleMapEditor.Editor
         }
     }
 }
+#endif

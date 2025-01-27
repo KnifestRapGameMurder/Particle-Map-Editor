@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿#if UNITY_EDITOR
+using System.Collections.Generic;
 using UnityEngine;
 using TriInspector;
 using System;
@@ -14,7 +15,7 @@ namespace Flexus.ParticleMapEditor.Editor
     [DeclareFoldoutGroup("Particle")]
     [DeclareBoxGroup("Particle/Random", Title = "Randomization")]
     [DeclareFoldoutGroup("Resource")]
-    [System.Serializable]
+    [Serializable]
     public class ParticleType:IParticleType
     {
         [HideInInspector]
@@ -95,3 +96,4 @@ namespace Flexus.ParticleMapEditor.Editor
         }
     }
 }
+#endif

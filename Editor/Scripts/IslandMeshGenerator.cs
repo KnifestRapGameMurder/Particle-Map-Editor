@@ -1,5 +1,5 @@
-﻿using System;
-using System.Collections;
+﻿#if UNITY_EDITOR
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -343,3 +343,4 @@ namespace Flexus.ParticleMapEditor.Editor
         }
     }
 }
+#endif

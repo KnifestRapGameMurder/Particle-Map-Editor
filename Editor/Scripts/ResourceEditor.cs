@@ -1,4 +1,4 @@
-﻿using UnityEditor;
+﻿#if UNITY_EDITOR
 using UnityEngine;
 using TriInspector;
 
@@ -53,3 +53,4 @@ namespace Flexus.ParticleMapEditor.Editor
         //}
     }
 }
+#endif

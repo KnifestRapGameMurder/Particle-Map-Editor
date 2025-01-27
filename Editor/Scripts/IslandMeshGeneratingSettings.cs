@@ -1,4 +1,5 @@
-﻿using TriInspector;
+﻿#if UNITY_EDITOR
+using TriInspector;
 using UnityEngine;
 
 namespace Flexus.ParticleMapEditor.Editor
@@ -26,3 +27,4 @@ namespace Flexus.ParticleMapEditor.Editor
         [Group(Constants.Dev), Range(0, 0.5f)] public float colorTolerance = 0.15f;
     }
 }
+#endif

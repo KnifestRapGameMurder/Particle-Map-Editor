@@ -1,7 +1,7 @@
-﻿using System;
+﻿#if UNITY_EDITOR
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using TriInspector;
 using UnityEngine;
 
 namespace Flexus.ParticleMapEditor.Editor
@@ -38,3 +38,4 @@ namespace Flexus.ParticleMapEditor.Editor
         public string Id => id;
     }
 }
+#endif

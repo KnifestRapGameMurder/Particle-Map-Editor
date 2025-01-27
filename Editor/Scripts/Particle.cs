@@ -1,5 +1,8 @@
-﻿using System.Collections.Generic;
+﻿#if UNITY_EDITOR
+using System;
+using System.Collections.Generic;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
@@ -10,7 +13,7 @@ namespace Flexus.ParticleMapEditor.Editor
         IParticleType Type { get; }
     }
     
-    [System.Serializable]
+    [Serializable]
     public class LevelObject:IParticle
     {
         public LevelObjectConfig config;
@@ -25,7 +28,7 @@ namespace Flexus.ParticleMapEditor.Editor
         public IParticleType Type => config;
     }
     
-    [System.Serializable]
+    [Serializable]
     public class Particle : IParticle
     {
         public Vector2 CurrentPosition;
@@ -185,3 +188,4 @@ namespace Flexus.ParticleMapEditor.Editor
         Vector2 IParticle.CurrentPosition { get => CurrentPosition; set => CurrentPosition = value; }
     }
 }
+#endif

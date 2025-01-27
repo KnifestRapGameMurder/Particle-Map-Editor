@@ -1,4 +1,5 @@
-﻿namespace Flexus.ParticleMapEditor.Editor
+﻿#if UNITY_EDITOR
+namespace Flexus.ParticleMapEditor.Editor
 {
     public static class Constants
     {
@@ -15,3 +16,4 @@
         //public const string EmptyGround = "Empty Ground";
     }
 }
+#endif

@@ -1,13 +1,15 @@
-﻿using System.Collections.Generic;
+﻿#if UNITY_EDITOR
+using System.Collections.Generic;
 using System.Text;
+using TMPro;
 using UnityEngine;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
     public class ParticleGeneratorUI : MonoBehaviour
     {
-        [SerializeField] private TMPro.TMP_Text _totalCount;
-        [SerializeField] private TMPro.TMP_Text _resCount;
+        [SerializeField] private TMP_Text _totalCount;
+        [SerializeField] private TMP_Text _resCount;
 
         private StringBuilder _stringBuilder = new();
 
@@ -34,3 +36,4 @@ namespace Flexus.ParticleMapEditor.Editor
         }
     }
 }
+#endif

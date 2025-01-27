@@ -1,4 +1,5 @@
-﻿using Unity.Burst;
+﻿#if UNITY_EDITOR
+using Unity.Burst;
 using Unity.Mathematics;
 
 namespace Flexus.ParticleMapEditor.Editor
@@ -18,3 +19,4 @@ namespace Flexus.ParticleMapEditor.Editor
         public float Radius;
     }
 }
+#endif

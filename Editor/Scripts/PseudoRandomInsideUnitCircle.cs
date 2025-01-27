@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿#if UNITY_EDITOR
+using UnityEngine;
+using Random = System.Random;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
@@ -7,7 +9,7 @@ namespace Flexus.ParticleMapEditor.Editor
         public static Vector2 GetVector(float input)
         {
             // Seed the random generator using the input value
-            System.Random random = new System.Random(input.GetHashCode());
+            Random random = new Random(input.GetHashCode());
 
             // Generate a random angle
             float angle = (float)random.NextDouble() * Mathf.PI * 2f;
@@ -23,3 +25,4 @@ namespace Flexus.ParticleMapEditor.Editor
         }
     }
 }
+#endif

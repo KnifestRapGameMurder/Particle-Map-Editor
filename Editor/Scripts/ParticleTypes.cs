@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿#if UNITY_EDITOR
+using System.Collections.Generic;
 using TriInspector;
 using UnityEngine;
 
@@ -11,7 +11,6 @@ namespace Flexus.ParticleMapEditor.Editor
         [Space]
         public List<ParticleType> Types;
 
-#if UNITY_EDITOR
         private void OnEnable()
         {
             Types.ForEach(_ => _.CheckAndFixId());
@@ -35,6 +34,6 @@ namespace Flexus.ParticleMapEditor.Editor
                 }
             }
         }
-#endif
     }
 }
+#endif

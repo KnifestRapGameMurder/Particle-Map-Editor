@@ -1,11 +1,10 @@
-﻿using System;
+﻿#if UNITY_EDITOR
 using System.Collections;
 using UnityEngine;
 using TriInspector;
 using UnityEditor;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine.Serialization;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
@@ -261,3 +260,4 @@ namespace Flexus.ParticleMapEditor.Editor
         }
     }
 }
+#endif
