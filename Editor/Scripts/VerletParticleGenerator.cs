@@ -74,7 +74,7 @@ namespace Flexus.ParticleMapEditor.Editor
                 var levelObject = new LevelObject()
                 {
                     config = config,
-                    instance = Instantiate(config.prefab, transform),
+                    instance = Instantiate(config.Prefab, transform),
                 };
                 LevelObjects.Add(levelObject);
                 _isResLocked[config.Id] = true;

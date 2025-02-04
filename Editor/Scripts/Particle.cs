@@ -16,7 +16,7 @@ namespace Flexus.ParticleMapEditor.Editor
     [Serializable]
     public class LevelObject:IParticle
     {
-        public LevelObjectConfig config;
+        [SerializeReference] public ILevelObjectConfig config;
         public Transform instance;
 
         public Vector2 CurrentPosition
@@ -24,7 +24,7 @@ namespace Flexus.ParticleMapEditor.Editor
             get => new(instance.position.x, instance.position.z);
             set => instance.position = new Vector3(value.x, 0f, value.y);
         }
-        public float Radius => config.radius;
+        public float Radius => config.Radius;
         public IParticleType Type => config;
     }
     

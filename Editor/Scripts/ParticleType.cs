@@ -6,10 +6,6 @@ using System;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
-    public interface IParticleType
-    {
-        string Id { get; }
-    }
     
     [DeclareHorizontalGroup("ResourceConfig", Sizes = new[] { 200f, 50f })]
     [DeclareFoldoutGroup("Particle")]

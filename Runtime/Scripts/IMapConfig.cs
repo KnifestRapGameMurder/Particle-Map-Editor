@@ -29,7 +29,7 @@ namespace Flexus.ParticleMapEditor
             
             public struct LevelObjectArgs
             {
-                public string Name;
+                public ILevelObjectConfig LevelObjectConfig;
                 public Vector2 Position;
             }
         }

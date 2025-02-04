@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Flexus.ParticleMapEditor.Editor
 {
     [DeclareFoldoutGroup(Constants.Dev)]
-    [CreateAssetMenu(menuName = nameof(IslandMeshGeneratingSettings))]
+    [CreateAssetMenu(menuName = Constants.NameSpace + nameof(IslandMeshGeneratingSettings))]
     public class IslandMeshGeneratingSettings : ScriptableObject
     {
         public Texture2D islandTexture;

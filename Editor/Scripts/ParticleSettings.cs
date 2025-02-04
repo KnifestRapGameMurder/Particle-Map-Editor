@@ -12,7 +12,7 @@ namespace Flexus.ParticleMapEditor.Editor
     [DeclareBoxGroup(Constants.VisualizationControls)]
     [DeclareBoxGroup(Constants.PaintingControls)]
     [DeclareFoldoutGroup(Constants.Dev)]
-    [CreateAssetMenu(fileName = Constants.Settings, menuName = Constants.MapGenerating + "/" + Constants.Settings)]
+    [CreateAssetMenu(fileName = nameof(ParticleSettings), menuName = Constants.NameSpace + nameof(ParticleSettings))]
     public class ParticleSettings : ScriptableObject
     {
         [Group(Constants.ParticleControls), GUIColor("$" + nameof(_particleControlsGroupColor)), InlineEditor]

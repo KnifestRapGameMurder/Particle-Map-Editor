@@ -158,7 +158,7 @@ namespace Flexus.ParticleMapEditor.Editor
                 ResourceData = resources.ToArray(),
                 IslandMesh = meshGenerator.IslandMesh,
                 LevelObjects = _generator.LevelObjects.Select(lo => new IMapConfig.MapArgs.LevelObjectArgs
-                    { Name = lo.config.name, Position = lo.CurrentPosition }).ToArray(),
+                    { LevelObjectConfig = lo.config, Position = lo.CurrentPosition }).ToArray(),
             };
 
             ExportToExistingMap(args);
@@ -212,7 +212,7 @@ namespace Flexus.ParticleMapEditor.Editor
             config.Particles = _generator.Particles
                 .Select(p => new MapEditorConfig.ParticleArgs() { Position = p.CurrentPosition }).ToList();
             config.levelObjects = _generator.LevelObjects.Select(lo => new MapEditorConfig.LevelObjectArgs()
-                { position = lo.CurrentPosition, name = lo.config.name }).ToList();
+                { position = lo.CurrentPosition, config = lo.config }).ToList();
 
         }
 
@@ -248,15 +248,13 @@ namespace Flexus.ParticleMapEditor.Editor
             }
 
             if (data.levelObjects != null)
-            {
                 foreach (var levelObject in _generator.LevelObjects)
-                foreach (var loadedLevelObject in data.levelObjects)
+                foreach (var loadedLevelObject in data.levelObjects.Where(loadedLevelObject =>
+                             levelObject.config.Id == loadedLevelObject.config.Id))
                 {
-                    if (levelObject.config.name != loadedLevelObject.name) continue;
                     levelObject.CurrentPosition = loadedLevelObject.position;
                     break;
                 }
-            }
         }
     }
 }

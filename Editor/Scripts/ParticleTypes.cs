@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
-    [CreateAssetMenu(fileName = Constants.Types, menuName = Constants.MapGenerating + "/" + Constants.Types)]
+    [CreateAssetMenu(fileName = nameof(ParticleTypes), menuName = Constants.NameSpace + nameof(ParticleTypes))]
     public class ParticleTypes : ScriptableObject
     {
         [Space]

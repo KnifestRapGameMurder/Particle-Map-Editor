@@ -7,7 +7,7 @@ using TriInspector;
 
 namespace Flexus.ParticleMapEditor.Editor
 {
-    [CreateAssetMenu(menuName = "ParticleMapEditor/MapEditorConfig")]
+    [CreateAssetMenu(menuName = Constants.NameSpace + "MapEditorConfig")]
     public class MapEditorConfig : ScriptableObject
     {
         [HideInInspector]
@@ -41,7 +41,7 @@ namespace Flexus.ParticleMapEditor.Editor
         [Serializable]
         public struct LevelObjectArgs
         {
-            public string name;
+            [SerializeReference] public ILevelObjectConfig config;
             public Vector2 position;
         }
 
