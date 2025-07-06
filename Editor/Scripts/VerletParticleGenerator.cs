@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections;
 using UnityEngine;
 using System.Linq;
+using Knifest.UniTools.Extensions;
 using TriInspector;
 using UnityEngine.Profiling;
 using Unity.Collections;
